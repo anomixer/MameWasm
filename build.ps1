@@ -125,7 +125,7 @@ $buildCmd += " SUBTARGET=$Subtarget"
 if ($Sources) {
     $buildCmd += " SOURCES=$Sources"
 }
-$buildCmd += " TARGET=$Target PLATFORM=emscripten EMCC_CFLAGS=\"-Oz\" -j 4"
+$buildCmd += " TARGET=$Target PLATFORM=emscripten EMCC_CFLAGS='-Oz' -j 4"
 if ($ExceptionFlag -eq "0") {
     $buildCmd += " NOWERROR=1"
 }
