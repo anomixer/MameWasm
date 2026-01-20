@@ -66,6 +66,22 @@ if (!$env:MINGW32) {
     $env:MINGW32 = "$PWD/bin"
 }
 
+# Add Git Unix tools to PATH
+# MAME Makefile needs commands like 'head', 'sed', 'awk', etc.
+$gitPaths = @(
+    "C:/Program Files/Git/usr/bin",
+    "C:/Program Files (x86)/Git/usr/bin",
+    "$ENV:ProgramFiles/Git/usr/bin"
+)
+
+foreach ($gitPath in $gitPaths) {
+    if (Test-Path $gitPath) {
+        $env:PATH = "$gitPath;$env:PATH"
+        Write-Host "[+] Git Unix tools added to PATH" -ForegroundColor Green
+        break
+    }
+}
+
 Write-Host "[+] Environment ready" -ForegroundColor Green
 
 # ============================================================================
