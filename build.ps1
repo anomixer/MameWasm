@@ -83,6 +83,11 @@ foreach ($gitPath in $gitPaths) {
     }
 }
 
+# CRITICAL: Set TOOLCHAIN to empty to prevent MAME from auto-detecting GCC
+# MAME's scripts/toolchain.lua will default to system compiler if TOOLCHAIN is set
+# By leaving it empty, emmake's CC/CXX overrides will work
+$env:TOOLCHAIN = ""
+
 Write-Host "[+] Environment ready" -ForegroundColor Green
 
 # ============================================================================
@@ -159,16 +164,18 @@ Write-Host "`n[*] Preparing build..." -ForegroundColor Yellow
 
 cd mame
 
-# CRITICAL: MAME requires OVERRIDE_CC and OVERRIDE_CXX for cross-compilation
-# Using CC/CXX doesn't work - MAME's makefile ignores them and detects system GCC
-# Reference: https://docs.mamedev.org/initialsetup/compilingmame.html
+# Build command for Emscripten WebAssembly compilation
+# Key points:
+# 1. emmake wrapper ensures Emscripten environment is used
+# 2. OVERRIDE_CC/OVERRIDE_CXX forces emcc/em++ (MAME ignores CC/CXX)
+# 3. CROSS_BUILD=1 enables cross-compilation mode
+# 4. TOOLCHAIN env var must be empty (set above) to prevent GCC detection
 $buildCmd = "emmake make"
 $buildCmd += " TARGET=$Target"
 $buildCmd += " SUBTARGET=$Subtarget"
 if ($Sources) {
     $buildCmd += " SOURCES=$Sources"
 }
-# Use OVERRIDE_CC/OVERRIDE_CXX to force Emscripten compilers
 $buildCmd += " OVERRIDE_CC=emcc OVERRIDE_CXX=em++ CROSS_BUILD=1"
 $buildCmd += " -j 4 NOWERROR=1"
 if ($ExceptionFlag -eq "0") {
