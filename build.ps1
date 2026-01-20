@@ -190,20 +190,26 @@ Write-Host "`n[*] Preparing build..." -ForegroundColor Yellow
 
 cd mame
 
-# Build command
-$buildCmd = "make"
+# CRITICAL FIX: Use emmake wrapper to force Emscripten toolchain
+# Without emmake, MAME Makefile detects Windows and uses mingw x32 instead of WebAssembly
+$buildCmd = "emmake make"
+$buildCmd += " TARGET=$Target"
 $buildCmd += " SUBTARGET=$Subtarget"
 if ($Sources) {
     $buildCmd += " SOURCES=$Sources"
 }
-# Force 64-bit for WebAssembly (PTR64=1)
-# Add optimization flag for smaller WASM output
-$buildCmd += " TARGET=$Target PLATFORM=emscripten PTR64=1 EMCC_CFLAGS='-Oz' -j 4"
+# EMSCRIPTEN=1 tells MAME we're building for WebAssembly
+# -j 4 enables parallel compilation (4 jobs)
+# NOWERROR=1 treats warnings as non-fatal
+$buildCmd += " EMSCRIPTEN=1 -j 4 NOWERROR=1"
 if ($ExceptionFlag -eq "0") {
-    $buildCmd += " NOWERROR=1"
+    $buildCmd += " DISABLE_EXCEPTION_CATCHING=0"
+} else {
+    $buildCmd += " DISABLE_EXCEPTION_CATCHING=1"
 }
 
 Write-Host "[+] Build configuration ready" -ForegroundColor Green
+Write-Host "[*] Command: $buildCmd" -ForegroundColor DarkGray
 
 # ============================================================================
 # BUILD EXECUTION
