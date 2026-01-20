@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAME WASM - Vanilla Loader</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        input[type="file"],
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input[type="file"]:focus,
+        input[type="text"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-play {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-play:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-play:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-reset {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .btn-reset:hover {
+            background: #e0e0e0;
+        }
+        .output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #333;
+            min-height: 100px;
+            overflow-y: auto;
+            max-height: 300px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .output.error {
+            border-left-color: #ff6b6b;
+            background: #fff5f5;
+            color: #c92a2a;
+        }
+        .output.success {
+            border-left-color: #51cf66;
+            background: #f1fdf4;
+            color: #2b8a3e;
+        }
+        .emulator-container {
+            margin-top: 30px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #000;
+            display: none;
+        }
+        .emulator-container.active {
+            display: block;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+        .info-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f7ff;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            font-size: 13px;
+            color: #333;
+            line-height: 1.6;
+        }
+        .info-box strong {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MAME WASM Emulator</h1>
+        <p class="subtitle">Vanilla Loader - ROM Player</p>
+
+        <div class="form-group">
+            <label for="romFile">Select ROM File (ZIP):</label>
+            <input type="file" id="romFile" accept=".zip">
+        </div>
+
+        <div class="button-group">
+            <button class="btn-play" id="playBtn" onclick="playGame()">Play</button>
+            <button class="btn-reset" id="resetBtn" onclick="resetForm()">Reset</button>
+        </div>
+
+        <div class="output" id="output" style="display:none;"></div>
+
+        <div class="emulator-container" id="emulatorContainer">
+            <canvas id="emulatorCanvas"></canvas>
+        </div>
+
+        <div class="info-box">
+            <strong>Instructions:</strong>
+            <ul style="margin-left: 20px; margin-top: 8px;">
+                <li>Select a ROM ZIP file (e.g., pacman.zip, invaders.zip)</li>
+                <li>Click "Play" to start emulation</li>
+                <li>Use keyboard or gamepad to control the game</li>
+                <li>Common keys: Arrow keys = Move, Space/Enter = Fire/Action</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const romFileInput = document.getElementById('romFile');
+        const outputDiv = document.getElementById('output');
+        const playBtn = document.getElementById('playBtn');
+        const emulatorContainer = document.getElementById('emulatorContainer');
+
+        function showOutput(message, type = 'info') {
+            outputDiv.style.display = 'block';
+            outputDiv.textContent = message;
+            outputDiv.className = 'output ' + type;
+        }
+
+        function playGame() {
+            const file = romFileInput.files[0];
+            if (!file) {
+                showOutput('Please select a ROM file first.', 'error');
+                return;
+            }
+
+            if (!file.name.toLowerCase().endsWith('.zip')) {
+                showOutput('Error: Please select a ZIP file.', 'error');
+                return;
+            }
+
+            playBtn.disabled = true;
+            showOutput('Loading ROM: ' + file.name + '\nInitializing emulator...', 'info');
+
+            // Simulate loading (in real implementation, would load actual emulator)
+            setTimeout(() => {
+                showOutput('ROM loaded successfully!\nEmulator ready.\n\nTo actually play, you need:\n1. Compiled mame.js + mame.wasm from build.ps1\n2. Replace this with actual emulator initialization', 'success');
+                emulatorContainer.classList.add('active');
+                playBtn.disabled = false;
+            }, 1000);
+        }
+
+        function resetForm() {
+            romFileInput.value = '';
+            outputDiv.style.display = 'none';
+            emulatorContainer.classList.remove('active');
+            playBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
