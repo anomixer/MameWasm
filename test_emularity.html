@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>MAME WASM - Emularity Test</title>
+    <!-- Use the proven working loader configuration -->
+    <script src="emularity/browserfs.min.js"></script>
+    <script src="emularity/loader.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            background: #222;
+            color: #fff;
+        }
+
+        #canvas {
+            width: 640px;
+            height: 480px;
+            background: #000;
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>MAME WASM Emularity Test</h1>
+    <div id="emulator_container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        // Check if Emularity is loaded
+        if (typeof Emulator === 'undefined' && typeof JSMAMELoader === 'undefined') {
+            document.body.innerHTML += "<h3 style='color:red;'>Error: Emularity loader not found. Did you run setup.ps1?</h3>";
+        } else {
+            // Configure the emulator
+            // Note: MAME WASM usually requires specific arguments and file mounts.
+            // This is a minimal test to see if the binary loads.
+
+            var emulator = new Emulator(document.querySelector("#canvas"),
+                null,
+                new JSMAMELoader(JSMAMELoader.driver("robby"),
+                    JSMAMELoader.nativeResolution(640, 480),
+                    JSMAMELoader.emulatorJS("mame.js"),
+                    JSMAMELoader.emulatorWASM("mame.wasm"),
+                    JSMAMELoader.mountFile("robby.zip", JSMAMELoader.fetchFile("Game File", "robby.zip")),
+                    JSMAMELoader.extraArgs(["-verbose", "-window", "-video", "soft", "-resolution", "640x480"])
+                ));
+            emulator.start({ waitAfterDownloading: true });
+        }
+    </script>
+</body>
+
+</html>

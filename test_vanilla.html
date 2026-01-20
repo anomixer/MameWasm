@@ -1,227 +1,148 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en-us">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAME WASM - Vanilla Loader</title>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>MAME WASM - Vanilla Test</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            font-family: sans-serif;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 20px;
         }
-        .container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 800px;
-            width: 100%;
-            padding: 40px;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
-            font-size: 14px;
-        }
-        input[type="file"],
-        input[type="text"],
-        select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-        input[type="file"]:focus,
-        input[type="text"]:focus,
-        select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .button-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 30px;
-        }
-        button {
-            flex: 1;
-            padding: 14px;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .btn-play {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        .btn-play:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-        }
-        .btn-play:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .btn-reset {
-            background: #f0f0f0;
-            color: #333;
-        }
-        .btn-reset:hover {
-            background: #e0e0e0;
-        }
-        .output {
+
+        canvas.emscripten {
+            border: 0px none;
+            background-color: black;
             margin-top: 20px;
-            padding: 20px;
-            background: #f9f9f9;
-            border-radius: 6px;
-            border-left: 4px solid #667eea;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            color: #333;
-            min-height: 100px;
-            overflow-y: auto;
-            max-height: 300px;
-            white-space: pre-wrap;
-            word-break: break-word;
         }
-        .output.error {
-            border-left-color: #ff6b6b;
-            background: #fff5f5;
-            color: #c92a2a;
+
+        #status {
+            font-weight: bold;
+            color: #00bcd4;
+            margin: 10px;
         }
-        .output.success {
-            border-left-color: #51cf66;
-            background: #f1fdf4;
-            color: #2b8a3e;
-        }
-        .emulator-container {
-            margin-top: 30px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            overflow: hidden;
-            background: #000;
-            display: none;
-        }
-        .emulator-container.active {
-            display: block;
-        }
-        canvas {
-            display: block;
-            width: 100%;
-            height: auto;
-        }
-        .info-box {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f0f7ff;
-            border-radius: 6px;
-            border-left: 4px solid #667eea;
-            font-size: 13px;
-            color: #333;
-            line-height: 1.6;
-        }
-        .info-box strong {
-            color: #667eea;
+
+        #output {
+            width: 90%;
+            height: 200px;
+            background: #333;
+            border: 1px solid #555;
+            color: #0f0;
+            font-family: monospace;
+            overflow-y: scroll;
+            padding: 10px;
         }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <h1>MAME WASM Emulator</h1>
-        <p class="subtitle">Vanilla Loader - ROM Player</p>
+    <h1>MAME WASM Vanilla Test</h1>
+    <div id="status">Downloading...</div>
+    <progress value="0" max="100" id="progress" hidden=1></progress>
 
-        <div class="form-group">
-            <label for="romFile">Select ROM File (ZIP):</label>
-            <input type="file" id="romFile" accept=".zip">
-        </div>
+    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
 
-        <div class="button-group">
-            <button class="btn-play" id="playBtn" onclick="playGame()">Play</button>
-            <button class="btn-reset" id="resetBtn" onclick="resetForm()">Reset</button>
-        </div>
+    <h3>Console Output</h3>
+    <textarea id="output" readonly></textarea>
 
-        <div class="output" id="output" style="display:none;"></div>
+    <script type='text/javascript'>
+        var statusElement = document.getElementById('status');
+        var progressElement = document.getElementById('progress');
+        var outputElement = document.getElementById('output');
 
-        <div class="emulator-container" id="emulatorContainer">
-            <canvas id="emulatorCanvas"></canvas>
-        </div>
+        var Module = {
+            // 1. We hook into preRun to wait for the ROM to download before starting MAME
+            preRun: [],
+            postRun: [],
+            print: (function () {
+                return function (text) {
+                    if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+                    console.log(text);
+                    outputElement.value += text + "\n";
+                    outputElement.scrollTop = outputElement.scrollHeight; // auto scroll
+                };
+            })(),
+            printErr: function (text) {
+                if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+                console.error(text);
+                outputElement.value += "[ERR] " + text + "\n";
+                outputElement.scrollTop = outputElement.scrollHeight;
+            },
+            canvas: (function () {
+                var canvas = document.getElementById('canvas');
+                canvas.addEventListener("webglcontextlost", function (e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+                return canvas;
+            })(),
+            setStatus: function (text) {
+                if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+                if (text === Module.setStatus.last.text) return;
+                statusElement.innerHTML = text;
+            },
+            totalDependencies: 0,
+            monitorRunDependencies: function (left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+                Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+            },
+            // This function is called by the runtime to check for external data files
+            // But since we are manually handling it, we use logic below.
 
-        <div class="info-box">
-            <strong>Instructions:</strong>
-            <ul style="margin-left: 20px; margin-top: 8px;">
-                <li>Select a ROM ZIP file (e.g., pacman.zip, invaders.zip)</li>
-                <li>Click "Play" to start emulation</li>
-                <li>Use keyboard or gamepad to control the game</li>
-                <li>Common keys: Arrow keys = Move, Space/Enter = Fire/Action</li>
-            </ul>
-        </div>
-    </div>
+            arguments: [
+                'robby',          // Driver name
+                '-verbose',
+                '-window',
+                '-video', 'soft', // Software rendering
+                '-resolution', '640x480',
+                '-rompath', '/roms' // Tell MAME to look in our virtual folder
+            ]
+        };
 
-    <script>
-        const romFileInput = document.getElementById('romFile');
-        const outputDiv = document.getElementById('output');
-        const playBtn = document.getElementById('playBtn');
-        const emulatorContainer = document.getElementById('emulatorContainer');
+        // Manually handle the ROM download and "Mounting"
+        // In Emscripten, we write the file to the MEMFS virtual filesystem.
+        Module.preRun.push(function () {
+            Module.addRunDependency('robby_rom'); // Pause runtime start
 
-        function showOutput(message, type = 'info') {
-            outputDiv.style.display = 'block';
-            outputDiv.textContent = message;
-            outputDiv.className = 'output ' + type;
-        }
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'robby.zip', true);
+            xhr.responseType = 'arraybuffer';
+            xhr.onload = function (e) {
+                if (this.status == 200) {
+                    console.log("Downloaded robby.zip");
+                    try {
+                        FS.mkdir('/roms'); // Create a virtual directory
+                    } catch (e) { } // ignore if exists
 
-        function playGame() {
-            const file = romFileInput.files[0];
-            if (!file) {
-                showOutput('Please select a ROM file first.', 'error');
-                return;
-            }
+                    // Write the file to the virtual filesystem
+                    FS.writeFile('/roms/robby.zip', new Uint8Array(this.response));
 
-            if (!file.name.toLowerCase().endsWith('.zip')) {
-                showOutput('Error: Please select a ZIP file.', 'error');
-                return;
-            }
+                    outputElement.value += "✅ Mounted robby.zip to /roms/robby.zip\n";
+                } else {
+                    outputElement.value += "❌ Failed to download robby.zip\n";
+                }
+                Module.removeRunDependency('robby_rom'); // Resume runtime start
+            };
+            xhr.onerror = function () {
+                outputElement.value += "❌ Network error downloading robby.zip\n";
+                Module.removeRunDependency('robby_rom');
+            };
 
-            playBtn.disabled = true;
-            showOutput('Loading ROM: ' + file.name + '\nInitializing emulator...', 'info');
+            outputElement.value += "⬇️  Downloading robby.zip...\n";
+            xhr.send();
+        });
 
-            // Simulate loading (in real implementation, would load actual emulator)
-            setTimeout(() => {
-                showOutput('ROM loaded successfully!\nEmulator ready.\n\nTo actually play, you need:\n1. Compiled mame.js + mame.wasm from build.ps1\n2. Replace this with actual emulator initialization', 'success');
-                emulatorContainer.classList.add('active');
-                playBtn.disabled = false;
-            }, 1000);
-        }
-
-        function resetForm() {
-            romFileInput.value = '';
-            outputDiv.style.display = 'none';
-            emulatorContainer.classList.remove('active');
-            playBtn.disabled = false;
-        }
+        Module.setStatus('Downloading...');
+        window.onerror = function (event) {
+            Module.setStatus('Exception thrown, see JavaScript console');
+            Module.setStatus = function (text) {
+                if (text) Module.printErr('[post-exception status] ' + text);
+            };
+        };
     </script>
+    <script async type="text/javascript" src="mame.js"></script>
 </body>
+
 </html>
