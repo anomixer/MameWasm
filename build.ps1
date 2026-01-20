@@ -60,6 +60,12 @@ if (!(Test-Path "emsdk/emsdk_env.ps1")) {
 . ./emsdk/emsdk_env.ps1
 $env:PATH = "$PWD/bin;$env:PATH"
 
+# Set MINGW32 for MAME Makefile
+# This is required by MAME's Makefile for WebAssembly builds
+if (!$env:MINGW32) {
+    $env:MINGW32 = "$PWD/bin"
+}
+
 Write-Host "[+] Environment ready" -ForegroundColor Green
 
 # ============================================================================
