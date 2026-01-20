@@ -204,7 +204,7 @@ if (Test-Path "emularity/loader.js") {
 # ============================================================================
 
 Write-Host "`n✅ Setup Complete!" -ForegroundColor Cyan
-Write-Host "─────────────────────────────────────────────────────────────" -ForegroundColor Cyan
+Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host "Next: ./build.ps1" -ForegroundColor Green
-Write-Host "─────────────────────────────────────────────────────────────" -ForegroundColor Cyan
+Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host ""
