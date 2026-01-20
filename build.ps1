@@ -58,6 +58,15 @@ if (!(Test-Path "emsdk/emsdk_env.ps1")) {
 
 # Activate Emscripten
 . ./emsdk/emsdk_env.ps1
+
+# Add Emscripten upstream bin to PATH BEFORE local bin
+# This ensures clang/clang++/llvm-ar are available
+$emscriptenBin = "$PWD/emsdk/upstream/bin"
+if (Test-Path $emscriptenBin) {
+    $env:PATH = "$emscriptenBin;$env:PATH"
+}
+
+# Add local bin directory
 $env:PATH = "$PWD/bin;$env:PATH"
 
 # Set MINGW32 for MAME Makefile
@@ -80,6 +89,28 @@ foreach ($gitPath in $gitPaths) {
         Write-Host "[+] Git Unix tools added to PATH" -ForegroundColor Green
         break
     }
+}
+
+# Create Emscripten compiler shims in bin/ if they don't exist
+# This helps MAME find the compilers
+Write-Host "[*] Setting up compiler shims..." -ForegroundColor Cyan
+New-Item -ItemType Directory -Force -Path "bin" -ErrorAction SilentlyContinue | Out-Null
+
+$emscriptenClang = "$PWD/emsdk/upstream/bin/clang.exe"
+$emscriptenClangPP = "$PWD/emsdk/upstream/bin/clang++.exe"
+
+if (Test-Path $emscriptenClang) {
+    # Create clang shim
+    if (!(Test-Path "bin/clang.exe")) {
+        Copy-Item $emscriptenClang "bin/clang.exe" -Force -ErrorAction SilentlyContinue
+    }
+    # Create clang++ shim
+    if (!(Test-Path "bin/clang++.exe")) {
+        Copy-Item $emscriptenClangPP "bin/clang++.exe" -Force -ErrorAction SilentlyContinue
+    }
+    Write-Host "[+] Compiler shims ready" -ForegroundColor Green
+} else {
+    Write-Host "[!] Emscripten clang not found at $emscriptenClang" -ForegroundColor Yellow
 }
 
 Write-Host "[+] Environment ready" -ForegroundColor Green
