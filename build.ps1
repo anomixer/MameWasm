@@ -60,7 +60,6 @@ if (!(Test-Path "emsdk/emsdk_env.ps1")) {
 . ./emsdk/emsdk_env.ps1
 
 # Add Emscripten upstream bin to PATH BEFORE local bin
-# This ensures clang/clang++/llvm-ar are available
 $emscriptenBin = "$PWD/emsdk/upstream/bin"
 if (Test-Path $emscriptenBin) {
     $env:PATH = "$emscriptenBin;$env:PATH"
@@ -69,14 +68,7 @@ if (Test-Path $emscriptenBin) {
 # Add local bin directory
 $env:PATH = "$PWD/bin;$env:PATH"
 
-# Set MINGW32 for MAME Makefile
-# This is required by MAME's Makefile for WebAssembly builds
-if (!$env:MINGW32) {
-    $env:MINGW32 = "$PWD/bin"
-}
-
 # Add Git Unix tools to PATH
-# MAME Makefile needs commands like 'head', 'sed', 'awk', etc.
 $gitPaths = @(
     "C:/Program Files/Git/usr/bin",
     "C:/Program Files (x86)/Git/usr/bin",
@@ -91,27 +83,12 @@ foreach ($gitPath in $gitPaths) {
     }
 }
 
-# Create Emscripten compiler shims in bin/ if they don't exist
-# This helps MAME find the compilers
-Write-Host "[*] Setting up compiler shims..." -ForegroundColor Cyan
-New-Item -ItemType Directory -Force -Path "bin" -ErrorAction SilentlyContinue | Out-Null
-
-$emscriptenClang = "$PWD/emsdk/upstream/bin/clang.exe"
-$emscriptenClangPP = "$PWD/emsdk/upstream/bin/clang++.exe"
-
-if (Test-Path $emscriptenClang) {
-    # Create clang shim
-    if (!(Test-Path "bin/clang.exe")) {
-        Copy-Item $emscriptenClang "bin/clang.exe" -Force -ErrorAction SilentlyContinue
-    }
-    # Create clang++ shim
-    if (!(Test-Path "bin/clang++.exe")) {
-        Copy-Item $emscriptenClangPP "bin/clang++.exe" -Force -ErrorAction SilentlyContinue
-    }
-    Write-Host "[+] Compiler shims ready" -ForegroundColor Green
-} else {
-    Write-Host "[!] Emscripten clang not found at $emscriptenClang" -ForegroundColor Yellow
-}
+# Force Emscripten compilers
+# CRITICAL: Override any GCC/clang detection by MAME Makefile
+$env:CC = "emcc"
+$env:CXX = "em++"
+$env:AR = "emar"
+Write-Host "[+] Forced CC=emcc, CXX=em++, AR=emar" -ForegroundColor Green
 
 Write-Host "[+] Environment ready" -ForegroundColor Green
 
@@ -158,7 +135,6 @@ if ($Sources -eq "") {
 }
 
 if ($Sources) {
-    # Auto-convert shortcuts
     if ($Sources -eq "pacman") {
         $Sources = "src/mame/pacman/pacman.cpp"
     } elseif ($Sources -eq "robby") {
@@ -190,17 +166,15 @@ Write-Host "`n[*] Preparing build..." -ForegroundColor Yellow
 
 cd mame
 
-# CRITICAL FIX: Use emmake wrapper to force Emscripten toolchain
-# Without emmake, MAME Makefile detects Windows and uses mingw x32 instead of WebAssembly
+# Use emmake wrapper with explicit compiler override
 $buildCmd = "emmake make"
 $buildCmd += " TARGET=$Target"
 $buildCmd += " SUBTARGET=$Subtarget"
 if ($Sources) {
     $buildCmd += " SOURCES=$Sources"
 }
-# EMSCRIPTEN=1 tells MAME we're building for WebAssembly
-# -j 4 enables parallel compilation (4 jobs)
-# NOWERROR=1 treats warnings as non-fatal
+# Explicitly pass compilers to make sure MAME uses Emscripten
+$buildCmd += " CC=emcc CXX=em++ AR=emar"
 $buildCmd += " EMSCRIPTEN=1 -j 4 NOWERROR=1"
 if ($ExceptionFlag -eq "0") {
     $buildCmd += " DISABLE_EXCEPTION_CATCHING=0"
