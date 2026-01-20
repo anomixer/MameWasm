@@ -83,13 +83,6 @@ foreach ($gitPath in $gitPaths) {
     }
 }
 
-# Force Emscripten compilers
-# CRITICAL: Override any GCC/clang detection by MAME Makefile
-$env:CC = "emcc"
-$env:CXX = "em++"
-$env:AR = "emar"
-Write-Host "[+] Forced CC=emcc, CXX=em++, AR=emar" -ForegroundColor Green
-
 Write-Host "[+] Environment ready" -ForegroundColor Green
 
 # ============================================================================
@@ -166,16 +159,18 @@ Write-Host "`n[*] Preparing build..." -ForegroundColor Yellow
 
 cd mame
 
-# Use emmake wrapper with explicit compiler override
+# CRITICAL: MAME requires OVERRIDE_CC and OVERRIDE_CXX for cross-compilation
+# Using CC/CXX doesn't work - MAME's makefile ignores them and detects system GCC
+# Reference: https://docs.mamedev.org/initialsetup/compilingmame.html
 $buildCmd = "emmake make"
 $buildCmd += " TARGET=$Target"
 $buildCmd += " SUBTARGET=$Subtarget"
 if ($Sources) {
     $buildCmd += " SOURCES=$Sources"
 }
-# Explicitly pass compilers to make sure MAME uses Emscripten
-$buildCmd += " CC=emcc CXX=em++ AR=emar"
-$buildCmd += " EMSCRIPTEN=1 -j 4 NOWERROR=1"
+# Use OVERRIDE_CC/OVERRIDE_CXX to force Emscripten compilers
+$buildCmd += " OVERRIDE_CC=emcc OVERRIDE_CXX=em++ CROSS_BUILD=1"
+$buildCmd += " -j 4 NOWERROR=1"
 if ($ExceptionFlag -eq "0") {
     $buildCmd += " DISABLE_EXCEPTION_CATCHING=0"
 } else {
