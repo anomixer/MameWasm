@@ -196,7 +196,9 @@ $buildCmd += " SUBTARGET=$Subtarget"
 if ($Sources) {
     $buildCmd += " SOURCES=$Sources"
 }
-$buildCmd += " TARGET=$Target PLATFORM=emscripten EMCC_CFLAGS='-Oz' -j 4"
+# Force 64-bit for WebAssembly (PTR64=1)
+# Add optimization flag for smaller WASM output
+$buildCmd += " TARGET=$Target PLATFORM=emscripten PTR64=1 EMCC_CFLAGS='-Oz' -j 4"
 if ($ExceptionFlag -eq "0") {
     $buildCmd += " NOWERROR=1"
 }
