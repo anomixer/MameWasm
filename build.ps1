@@ -76,25 +76,40 @@ Write-Host "`n[*] Collecting build parameters..." -ForegroundColor Yellow
 
 # TARGET
 if (-not $Target) {
-    $Target = Read-Host "TARGET (default: mame)" 
+    Write-Host "`n[TARGET] Available options:" -ForegroundColor Cyan
+    Write-Host "  mame       - Standard MAME (default, recommended)" -ForegroundColor Gray
+    Write-Host "  ldplayer   - LDPLAYER (rare)" -ForegroundColor Gray
+    $Target = Read-Host "`nChoose TARGET (default: mame)"
     if (-not $Target) { $Target = "mame" }
 }
-Write-Host "    TARGET: $Target" -ForegroundColor Cyan
+Write-Host "  Selected: $Target" -ForegroundColor Green
 
 # SUBTARGET
 if (-not $Subtarget) {
-    Write-Host "    Available: tiny (recommended), mame, mess, arcade, pacmantest, etc."
-    $Subtarget = Read-Host "SUBTARGET (default: tiny)"
+    Write-Host "`n[SUBTARGET] Available options:" -ForegroundColor Cyan
+    Write-Host "  tiny       - Minimal build (RECOMMENDED) ~30-50MB, 10-20 min" -ForegroundColor Yellow
+    Write-Host "  mame       - Full MAME (all arcade) ~80-100MB, 1-2 hours" -ForegroundColor Gray
+    Write-Host "  mess       - Retro computers & consoles ~60-80MB, 45-60 min" -ForegroundColor Gray
+    Write-Host "  arcade     - Arcade games only ~70-90MB, 45-60 min" -ForegroundColor Gray
+    Write-Host "  pacmantest - Pac-Man test build ~4MB, 2-5 min (FASTEST)" -ForegroundColor Yellow
+    $Subtarget = Read-Host "`nChoose SUBTARGET (default: tiny)"
     if (-not $Subtarget) { $Subtarget = "tiny" }
 }
-Write-Host "    SUBTARGET: $Subtarget" -ForegroundColor Cyan
+Write-Host "  Selected: $Subtarget" -ForegroundColor Green
 
 # SOURCES
 if ($Sources -eq "") {
-    Write-Host "    Examples: pacman, robby, src/mame/pacman/pacman.cpp"
-    Write-Host "    Leave empty for all drivers in SUBTARGET"
-    $Sources = Read-Host "SOURCES (optional)"
+    Write-Host "`n[SOURCES] Available options:" -ForegroundColor Cyan
+    Write-Host "  (leave empty)              - All drivers in SUBTARGET" -ForegroundColor Gray
+    Write-Host "  pacman                     - Pac-Man (auto-convert to full path)" -ForegroundColor Gray
+    Write-Host "  robby                      - Robby Roto (auto-convert to full path)" -ForegroundColor Gray
+    Write-Host "  src/mame/pacman/pacman.cpp - Pac-Man (full path)" -ForegroundColor Gray
+    Write-Host "  src/mame/midway/astrocde.cpp - Robby Roto (full path)" -ForegroundColor Gray
+    Write-Host "  src/mame/midw8080/mw8080bw.cpp - Space Invaders (full path)" -ForegroundColor Gray
+    Write-Host "  file1.cpp,file2.cpp        - Multiple drivers (comma-separated)" -ForegroundColor Gray
+    $Sources = Read-Host "`nChoose SOURCES (press Enter for all)"
 }
+
 if ($Sources) {
     # Auto-convert shortcuts
     if ($Sources -eq "pacman") {
@@ -102,19 +117,22 @@ if ($Sources) {
     } elseif ($Sources -eq "robby") {
         $Sources = "src/mame/midway/astrocde.cpp"
     }
-    Write-Host "    SOURCES: $Sources" -ForegroundColor Cyan
+    Write-Host "  Selected: $Sources" -ForegroundColor Green
 } else {
-    Write-Host "    SOURCES: (all drivers)" -ForegroundColor Cyan
+    Write-Host "  Selected: (all drivers)" -ForegroundColor Green
 }
 
 # Exception handling
-$Exception = Read-Host "Exception Handling - Enable for debugging? (Y/n)"
+Write-Host "`n[EXCEPTIONS] Debug mode:" -ForegroundColor Cyan
+Write-Host "  Y - Enable exceptions (slower, better debugging)" -ForegroundColor Gray
+Write-Host "  n - Disable exceptions (faster compilation)" -ForegroundColor Gray
+$Exception = Read-Host "`nEnable exception handling? (default: Y)"
 if ($Exception -like "n*") {
     $ExceptionFlag = "0"
-    Write-Host "    EXCEPTIONS: Disabled (faster)" -ForegroundColor Cyan
+    Write-Host "  Selected: Disabled (faster)" -ForegroundColor Green
 } else {
     $ExceptionFlag = "1"
-    Write-Host "    EXCEPTIONS: Enabled (slower, better debugging)" -ForegroundColor Cyan
+    Write-Host "  Selected: Enabled (slower, better debugging)" -ForegroundColor Green
 }
 
 # ============================================================================
