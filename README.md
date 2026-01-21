@@ -160,19 +160,18 @@ Fast (5 min) + Small (3-5MB) + Focused (one game)
 
 ---
 
-## 📈 Size & Time Reference
+## 📈 Build Output & Performance
 
-| Build | File Size | Time | Use Case |
-|-------|-----------|------|----------|
-| tiny (all) | 30-50MB | 10-20 min | General WASM |
-| Pac-Man | 3-5MB | 5-10 min | Single game |
-| Space Invaders | 2-4MB | 5-10 min | Classic arcade |
-| Robby Roto | 2-3MB | 5-10 min | Midway game |
-| pacmantest | 4MB | 2-5 min | Testing |
-| applulator | 40-50MB | 20-30 min | Apple II |
-| arcade | 70-90MB | 45-60 min | Arcades only |
-| mess | 60-80MB | 45-60 min | Home computers |
-| mame (full) | 80-100MB | 1-2 hours | Everything |
+| Subtarget | Output Files | Est. Size | Est. Time | Use Case |
+|-----------|--------------|-----------|-----------|----------|
+| **tiny** | `tiny.js`, `tiny.wasm` | 30-50MB | 10-20 min | **Recommended** (General WASM) |
+| **mame** | `mame.js`, `mame.wasm` | 80-100MB | 1-2 hours | Full Build (Requires 16GB+ RAM) |
+| **arcade** | `arcade.js`, `arcade.wasm` | 70-90MB | 45-60 min | Arcade games only |
+| **applulator** | `applulator.js`, `applulator.wasm` | 40-50MB | 20-30 min | Apple II family |
+| **mess** | `mess.js`, `mess.wasm` | 60-80MB | 45-60 min | Home computers & consoles |
+| **pacmantest** | `pacman.js`, `pacman.wasm` | ~4MB | 2-5 min | Quick testing |
+
+*Note: Filenames correspond to the `-Subtarget` parameter used during build.*
 
 ---
 
