@@ -177,6 +177,38 @@ if (Get-Command make -ErrorAction SilentlyContinue) {
     }
 }
 
+# --- Ninja ---
+Write-Host "   [*] Checking Ninja..." -ForegroundColor Cyan
+if (Get-Command ninja -ErrorAction SilentlyContinue) {
+    Write-Host "   [+] System Ninja found" -ForegroundColor Green
+} elseif (Test-Path "bin/ninja.exe") {
+    Write-Host "   [+] Local Ninja found" -ForegroundColor Green
+} else {
+    Write-Host "   [*] Downloading Ninja..."
+    try {
+        $wc = New-Object System.Net.WebClient
+        $wc.DownloadFile('https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip', 'bin/ninja.zip')
+        
+        # Extract
+        $extractPath = (Resolve-Path 'bin').Path
+        if (Test-Path 'C:/Program Files/7-Zip/7z.exe') {
+            & 'C:/Program Files/7-Zip/7z.exe' x 'bin/ninja.zip' -o'bin/' -y | Out-Null
+        } else {
+            Expand-Archive -Path 'bin/ninja.zip' -DestinationPath 'bin' -Force
+        }
+        
+        Remove-Item 'bin/ninja.zip' -Force -ErrorAction SilentlyContinue
+        
+        if (Test-Path "bin/ninja.exe") {
+            Write-Host "   [+] Ninja installed" -ForegroundColor Green
+        } else {
+            Write-Host "   [!] Ninja install failed." -ForegroundColor Red
+        }
+    } catch {
+        Write-Host "   [!] Ninja download failed: $_" -ForegroundColor Red
+    }
+}
+
 # --- GCC Shim ---
 Write-Host "   [*] Checking GCC..." -ForegroundColor Cyan
 

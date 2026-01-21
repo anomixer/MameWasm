@@ -2,9 +2,10 @@
 # Interactive script to compile MAME to WebAssembly
 
 param(
-    [string]$Target = "",
+    [string]$Target = "mame",
     [string]$Subtarget = "",
     [string]$Sources = "",
+    [string]$Debug = "Y",
     [switch]$Help = $false
 )
 
@@ -60,11 +61,17 @@ if (!(Test-Path "emsdk/emsdk_env.ps1")) {
 }
 
 # Activate Emscripten
-. ./emsdk/emsdk_env.ps1
+try {
+    . ./emsdk/emsdk_env.ps1
+} catch {
+    Write-Host "[-] Error loading Emscripten environment script: $_" -ForegroundColor Yellow
+}
 
 # Verify emcc is in path
 if (!(Get-Command emcc -ErrorAction SilentlyContinue)) {
     Write-Host "[-] Emscripten activation failed. 'emcc' not found in PATH." -ForegroundColor Red
+    Write-Host "    HINT: You may need to run this script with Execution Policy Bypass:" -ForegroundColor Yellow
+    Write-Host "    PowerShell -ExecutionPolicy Bypass -File ./build.ps1" -ForegroundColor Cyan
     exit 1
 }
 
@@ -165,22 +172,22 @@ if ($Sources) {
     Write-Host "  Selected: (all drivers)" -ForegroundColor Green
 }
 
-# Exception handling
-Write-Host "`n[EXCEPTIONS] Debug mode:" -ForegroundColor Cyan
-Write-Host "  Y - Enable exceptions (slower, better debugging)" -ForegroundColor Gray
-Write-Host "  n - Disable exceptions (faster compilation)" -ForegroundColor Gray
-$Exception = Read-Host "`nEnable exception handling? (default: Y)"
+# Exception handling / Debug Mode
+# Default to "Y" if not specified to prevent hanging in automation
+if ($Debug -eq "" -and -not $Subtarget) {
+    Write-Host "`n[DEBUG] Exception handling mode:" -ForegroundColor Cyan
+    Write-Host "  Y - Enable exceptions (slower, better debugging - DEFAULT)" -ForegroundColor Gray
+    Write-Host "  n - Disable exceptions (faster compilation)" -ForegroundColor Gray
+    $Debug = Read-Host "`nEnable exception handling? (Y/n)"
+    if (-not $Debug) { $Debug = "Y" }
+}
 
-# Fix Logic: 
-# If User says 'n' (Disable), we want DISABLE_EXCEPTION_CATCHING=1 (True, Disable it)
-# If User says 'Y' (Enable), we want DISABLE_EXCEPTION_CATCHING=0 (False, Don't disable it)
-
-if ($Exception -like "n*") {
+if ($Debug -like "n*") {
     $DisableExceptions = "1"
-    Write-Host "  Selected: Disabled (faster)" -ForegroundColor Green
+    Write-Host "  Selected: Exceptions Disabled (faster)" -ForegroundColor Green
 } else {
     $DisableExceptions = "0"
-    Write-Host "  Selected: Enabled (slower, better debugging)" -ForegroundColor Green
+    Write-Host "  Selected: Exceptions Enabled (slower, better debugging)" -ForegroundColor Green
 }
 
 # ============================================================================
@@ -198,39 +205,144 @@ if ($env:NUMBER_OF_PROCESSORS) {
     if ($cores -gt 1) { $cores-- }
 }
 
+# Check for Ninja
+$useNinja = $false
+if (Get-Command ninja -ErrorAction SilentlyContinue) {
+    $useNinja = $true
+    Write-Host "[*] Ninja build system detected. Using Ninja to bypass Windows limits." -ForegroundColor Cyan
+}
+
 # Build command for Emscripten WebAssembly compilation
 # Key points:
 # 1. emmake wrapper ensures Emscripten environment is used
 # 2. Target 'asmjs' triggers MAME's specific Emscripten/WASM build logic
 # 3. OVERRIDE_CC/OVERRIDE_CXX forces emcc/em++
-$buildCmd = "emmake make asmjs"
-$buildCmd += " TARGET=$Target"
-$buildCmd += " SUBTARGET=$Subtarget"
-if ($Sources) {
-    $buildCmd += " SOURCES=$Sources"
+
+# Step 1: Generate Prerequisites (Layouts, Version, etc.)
+# We run 'make generate' to handle layouts and version.cpp. 
+# This is safe and doesn't trigger the build or the buggy Ninja generation in Makefile.
+Write-Host "[*] Step 1: Running pre-build generation (layouts, version)..." -ForegroundColor Yellow
+
+$initialDir = $PSScriptRoot
+# Use Push-Location to safely enter 'mame' dir
+Push-Location "mame"
+
+try {
+    $preBuildCmd = "make generate TARGET=$Target SUBTARGET=$Subtarget IGNORE_GIT=1"
+    Write-Host "[*] Command: $preBuildCmd" -ForegroundColor DarkGray
+    Invoke-Expression $preBuildCmd
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[-] Pre-build generation failed." -ForegroundColor Red
+        exit 1
+    }
+
+    # Step 2: Generate Project Files
+    if ($useNinja) {
+        Write-Host "[*] Step 2: Generating Ninja project files (Direct Genie invocation)..." -ForegroundColor Yellow
+        
+        # Locate Genie (relative to 'mame' dir)
+        $genieExe = "$PWD/3rdparty/genie/bin/windows/genie.exe"
+        if (-not (Test-Path $genieExe)) {
+            Write-Host "[-] Genie not found at $genieExe. 'make generate' should have built it." -ForegroundColor Red
+            exit 1
+        }
+
+        # Construct Genie Command
+        # We bypass the makefile to avoid environment variable truncation issues on Windows.
+        $genieArgs = @(
+            "--file=scripts/genie.lua",
+            "--build-dir=build",
+            "--osd=sdl",
+            "--targetos=asmjs",
+            "--gcc=asmjs",
+            "--gcc_version=22.0.0", # Hardcoded safe version for Clang (Emscripten uses recent Clang)
+            "--target=$Target",
+            "--subtarget=$Subtarget",
+            "--PLATFORM=x64", # Required by toolchain.lua
+            "ninja"
+        )
+        
+        if ($Sources) {
+            # Genie doesn't standardly support SOURCES, but MAME's scripts might handle it or we ignore it for project gen.
+            # If we ignore it, we build everything in that subtarget.
+            Write-Host "[!] Note: specific SOURCES='$Sources' not applied to project generation. Full subtarget will be built." -ForegroundColor Yellow
+        }
+
+        # Execute Genie
+        $proc = Start-Process -FilePath $genieExe -ArgumentList $genieArgs -NoNewWindow -PassThru -Wait
+        
+        if ($proc.ExitCode -ne 0) {
+            Write-Host "[-] Genie project generation failed." -ForegroundColor Red
+            exit 1
+        }
+    } else {
+        # Fallback to Make (Step 2 merged with Build)
+        Write-Host "[*] Step 2: Configuring for Make build..." -ForegroundColor Yellow
+        # Nothing specific needed, standard make command handles generation + build
+    }
+
+    # ============================================================================
+    # BUILD EXECUTION
+    # ============================================================================
+
+    if ($useNinja) {
+        Write-Host "`n[*] Starting Ninja build..." -ForegroundColor Yellow
+        
+        # Find build.ninja - Prioritize RELEASE configuration
+        $ninjaFiles = Get-ChildItem -Path "build" -Recurse -Filter "build.ninja"
+        $ninjaFile = $ninjaFiles | Where-Object { $_.Directory.Name -match "release" } | Select-Object -First 1
+        
+        # Fallback if release not found
+        if (-not $ninjaFile) {
+             $ninjaFile = $ninjaFiles | Select-Object -First 1
+        }
+        
+        if ($ninjaFile) {
+            $ninjaDir = $ninjaFile.Directory.FullName
+            Write-Host "   [+] build.ninja found at: $ninjaDir" -ForegroundColor Green
+            
+            # We invoke 'emmake ninja' here. 'emmake' sets up the environment variables for compilation.
+            $ninjaCmd = "emmake ninja -j $cores -C `"$ninjaDir`""
+            
+            # If SOURCES is provided, we can try to filter at the Ninja level if Ninja supports it, 
+            # but MAME's Ninja structure might be complex. 
+            # For now, we build the default target in the ninja file.
+            
+            Write-Host "[*] Ninja Command: $ninjaCmd" -ForegroundColor DarkGray
+            Invoke-Expression $ninjaCmd
+            $buildStatus = $LASTEXITCODE
+        } else {
+            Write-Host "[-] Error: build.ninja not found after Genie generation." -ForegroundColor Red
+            $buildStatus = 1
+        }
+
+    } else {
+        # Legacy Make Build
+        Write-Host "`n[*] Starting Make build..." -ForegroundColor Yellow
+        $makeCmd = "emmake make asmjs TARGET=$Target SUBTARGET=$Subtarget"
+        if ($Sources) { $makeCmd += " SOURCES=$Sources" }
+        $makeCmd += " OVERRIDE_CC=emcc.bat OVERRIDE_CXX=em++.bat IGNORE_GIT=1"
+        $makeCmd += " -j $cores NOWERROR=1 DISABLE_EXCEPTION_CATCHING=$DisableExceptions"
+        
+        # LDFLAGS for large builds
+        if ($Subtarget -in @("mame", "mess", "arcade", "applulator")) {
+            $makeCmd += ' LDFLAGS="-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s MAXIMUM_MEMORY=4GB"'
+        }
+        
+        Write-Host "[*] Make Command: $makeCmd" -ForegroundColor DarkGray
+        Invoke-Expression $makeCmd
+        $buildStatus = $LASTEXITCODE
+    }
+
+} finally {
+    # Always return to the original directory
+    if ($initialDir) {
+        Set-Location $initialDir
+    } else {
+        Pop-Location
+    }
 }
-# CROSS_BUILD=1 is implied by asmjs target in some MAME versions, but good to be explicit if needed.
-# However, 'asmjs' target usually handles toolchain setup.
-$buildCmd += " OVERRIDE_CC=emcc.bat OVERRIDE_CXX=em++.bat"
-$buildCmd += " -j $cores NOWERROR=1"
-$buildCmd += " DISABLE_EXCEPTION_CATCHING=$DisableExceptions"
-
-Write-Host "[+] Build configuration ready" -ForegroundColor Green
-Write-Host "[*] Command: $buildCmd" -ForegroundColor DarkGray
-
-# ============================================================================
-# BUILD EXECUTION
-# ============================================================================
-
-Write-Host "`n[*] Starting MAME compilation..." -ForegroundColor Yellow
-Write-Host "[*] This may take 5 minutes to 2 hours depending on SUBTARGET" -ForegroundColor Cyan
-Write-Host ""
-
-# Run build
-Invoke-Expression $buildCmd
-$buildStatus = $LASTEXITCODE
-
-cd ..
 
 # ============================================================================
 # COMPLETION

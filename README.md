@@ -60,15 +60,15 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 ### SUBTARGET
 **Which drivers/systems to compile**
 
-| SUBTARGET | Description | Use Case | Size | Time |
-|-----------|------------|----------|------|------|
-| `tiny` ⭐ | **RECOMMENDED** Minimal build | General WASM | 30-50MB | 10-20 min |
-| `mame` | Full MAME (all arcade) | Complete emulator | 80-100MB | 1-2 hours |
-| `mess` | Retro computers & consoles | Home systems | 60-80MB | 45-60 min |
-| `arcade` | Arcade games only | Arcade-only | 70-90MB | 45-60 min |
-| `pacmantest` | Pac-Man test build | Quick test | 4MB | 2-5 min |
-| `applulator` | Apple II systems | Apple II emulation | 40-50MB | 20-30 min |
-| `pacem` | Pac-Man variants | Minimal | 5-8MB | 5-10 min |
+| SUBTARGET | Description | Use Case | Size | Time | Note |
+|-----------|------------|----------|------|------|------|
+| `tiny` ⭐ | **RECOMMENDED** Minimal build | General WASM | 30-50MB | 10-20 min | Best for testing |
+| `mame` | Full MAME (all arcade) | Complete emulator | 80-100MB | 1-2 hours | **Requires 16GB+ RAM** |
+| `mess` | Retro computers & consoles | Home systems | 60-80MB | 45-60 min | Large build |
+| `arcade` | Arcade games only | Arcade-only | 70-90MB | 45-60 min | Large build |
+| `pacmantest` | Pac-Man test build | Quick test | 4MB | 2-5 min | Fastest |
+
+*Note: The build script automatically enables memory optimizations (ALLOW_MEMORY_GROWTH) for large builds like 'mame' and 'mess'.*
 
 ### SOURCES
 **Specific driver files to include** (optional)
