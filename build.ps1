@@ -8,6 +8,9 @@ param(
     [switch]$Help = $false
 )
 
+# Set encoding to UTF-8 to handle special characters correctly
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 if ($Help) {
     Write-Host @"
 MAME WASM Build Factory - Build Script
@@ -59,6 +62,12 @@ if (!(Test-Path "emsdk/emsdk_env.ps1")) {
 # Activate Emscripten
 . ./emsdk/emsdk_env.ps1
 
+# Verify emcc is in path
+if (!(Get-Command emcc -ErrorAction SilentlyContinue)) {
+    Write-Host "[-] Emscripten activation failed. 'emcc' not found in PATH." -ForegroundColor Red
+    exit 1
+}
+
 # Add Emscripten upstream bin to PATH BEFORE local bin
 $emscriptenBin = "$PWD/emsdk/upstream/bin"
 if (Test-Path $emscriptenBin) {
@@ -68,18 +77,30 @@ if (Test-Path $emscriptenBin) {
 # Add local bin directory
 $env:PATH = "$PWD/bin;$env:PATH"
 
-# Add Git Unix tools to PATH
-$gitPaths = @(
-    "C:/Program Files/Git/usr/bin",
-    "C:/Program Files (x86)/Git/usr/bin",
-    "$ENV:ProgramFiles/Git/usr/bin"
-)
-
-foreach ($gitPath in $gitPaths) {
-    if (Test-Path $gitPath) {
-        $env:PATH = "$gitPath;$env:PATH"
-        Write-Host "[+] Git Unix tools added to PATH" -ForegroundColor Green
-        break
+# Add Git Unix tools to PATH (Dynamically find Git)
+$gitCmd = Get-Command git -ErrorAction SilentlyContinue
+if ($gitCmd) {
+    # Resolve 'C:\Program Files\Git\cmd\git.exe' -> 'C:\Program Files\Git\usr\bin'
+    $gitRoot = (Get-Item $gitCmd.Source).Directory.Parent.FullName
+    $gitUsrBin = Join-Path $gitRoot "usr\bin"
+    
+    if (Test-Path $gitUsrBin) {
+        $env:PATH = "$gitUsrBin;$env:PATH"
+        Write-Host "[+] Git Unix tools added to PATH (Detected: $gitUsrBin)" -ForegroundColor Green
+    } else {
+        # Fallback to standard locations
+        $gitPaths = @(
+            "C:/Program Files/Git/usr/bin",
+            "C:/Program Files (x86)/Git/usr/bin",
+            "$ENV:ProgramFiles/Git/usr/bin"
+        )
+        foreach ($gitPath in $gitPaths) {
+            if (Test-Path $gitPath) {
+                $env:PATH = "$gitPath;$env:PATH"
+                Write-Host "[+] Git Unix tools added to PATH (Standard)" -ForegroundColor Green
+                break
+            }
+        }
     }
 }
 
@@ -87,6 +108,7 @@ foreach ($gitPath in $gitPaths) {
 # MAME's scripts/toolchain.lua will default to system compiler if TOOLCHAIN is set
 # By leaving it empty, emmake's CC/CXX overrides will work
 $env:TOOLCHAIN = ""
+$env:EMSCRIPTEN = "$PWD/emsdk/upstream/emscripten"
 
 Write-Host "[+] Environment ready" -ForegroundColor Green
 
@@ -148,11 +170,16 @@ Write-Host "`n[EXCEPTIONS] Debug mode:" -ForegroundColor Cyan
 Write-Host "  Y - Enable exceptions (slower, better debugging)" -ForegroundColor Gray
 Write-Host "  n - Disable exceptions (faster compilation)" -ForegroundColor Gray
 $Exception = Read-Host "`nEnable exception handling? (default: Y)"
+
+# Fix Logic: 
+# If User says 'n' (Disable), we want DISABLE_EXCEPTION_CATCHING=1 (True, Disable it)
+# If User says 'Y' (Enable), we want DISABLE_EXCEPTION_CATCHING=0 (False, Don't disable it)
+
 if ($Exception -like "n*") {
-    $ExceptionFlag = "0"
+    $DisableExceptions = "1"
     Write-Host "  Selected: Disabled (faster)" -ForegroundColor Green
 } else {
-    $ExceptionFlag = "1"
+    $DisableExceptions = "0"
     Write-Host "  Selected: Enabled (slower, better debugging)" -ForegroundColor Green
 }
 
@@ -164,25 +191,29 @@ Write-Host "`n[*] Preparing build..." -ForegroundColor Yellow
 
 cd mame
 
+# Determine CPU cores for -j flag (Default to processors - 1, min 1)
+$cores = 1
+if ($env:NUMBER_OF_PROCESSORS) {
+    $cores = [int]$env:NUMBER_OF_PROCESSORS
+    if ($cores -gt 1) { $cores-- }
+}
+
 # Build command for Emscripten WebAssembly compilation
 # Key points:
 # 1. emmake wrapper ensures Emscripten environment is used
-# 2. OVERRIDE_CC/OVERRIDE_CXX forces emcc/em++ (MAME ignores CC/CXX)
-# 3. CROSS_BUILD=1 enables cross-compilation mode
-# 4. TOOLCHAIN env var must be empty (set above) to prevent GCC detection
-$buildCmd = "emmake make"
+# 2. Target 'asmjs' triggers MAME's specific Emscripten/WASM build logic
+# 3. OVERRIDE_CC/OVERRIDE_CXX forces emcc/em++
+$buildCmd = "emmake make asmjs"
 $buildCmd += " TARGET=$Target"
 $buildCmd += " SUBTARGET=$Subtarget"
 if ($Sources) {
     $buildCmd += " SOURCES=$Sources"
 }
-$buildCmd += " OVERRIDE_CC=emcc OVERRIDE_CXX=em++ CROSS_BUILD=1"
-$buildCmd += " -j 4 NOWERROR=1"
-if ($ExceptionFlag -eq "0") {
-    $buildCmd += " DISABLE_EXCEPTION_CATCHING=0"
-} else {
-    $buildCmd += " DISABLE_EXCEPTION_CATCHING=1"
-}
+# CROSS_BUILD=1 is implied by asmjs target in some MAME versions, but good to be explicit if needed.
+# However, 'asmjs' target usually handles toolchain setup.
+$buildCmd += " OVERRIDE_CC=emcc.bat OVERRIDE_CXX=em++.bat"
+$buildCmd += " -j $cores NOWERROR=1"
+$buildCmd += " DISABLE_EXCEPTION_CATCHING=$DisableExceptions"
 
 Write-Host "[+] Build configuration ready" -ForegroundColor Green
 Write-Host "[*] Command: $buildCmd" -ForegroundColor DarkGray
@@ -209,16 +240,26 @@ if ($buildStatus -eq 0) {
     Write-Host "`n[+] Build successful!" -ForegroundColor Green
     Write-Host "==========================" -ForegroundColor Green
     
-    # Check output files
-    $jsFile = "mame/build/emscripten/obj/x64/Release/mame.js"
-    $wasmFile = "mame/build/emscripten/obj/x64/Release/mame.wasm"
+    # Smart File Detection (Search for newest JS file in build folder)
+    $jsFile = Get-ChildItem -Path "mame" -Recurse -Filter "*.js" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     
-    if ((Test-Path $jsFile) -and (Test-Path $wasmFile)) {
-        $jsSize = (Get-Item $jsFile).Length / 1MB
-        $wasmSize = (Get-Item $wasmFile).Length / 1MB
-        Write-Host "[+] Output files:" -ForegroundColor Green
-        Write-Host "    JS:   $jsFile ($([math]::Round($jsSize, 2)) MB)" -ForegroundColor Cyan
-        Write-Host "    WASM: $wasmFile ($([math]::Round($wasmSize, 2)) MB)" -ForegroundColor Cyan
+    if ($jsFile) {
+        $jsPath = $jsFile.FullName
+        # Assuming wasm is next to it
+        $wasmPath = $jsPath -replace "\.js$", ".wasm"
+        
+        $jsSize = $jsFile.Length / 1MB
+        
+        Write-Host "[+] Output files found:" -ForegroundColor Green
+        Write-Host "    JS:   $jsPath ($([math]::Round($jsSize, 2)) MB)" -ForegroundColor Cyan
+        
+        if (Test-Path $wasmPath) {
+            $wasmSize = (Get-Item $wasmPath).Length / 1MB
+            Write-Host "    WASM: $wasmPath ($([math]::Round($wasmSize, 2)) MB)" -ForegroundColor Cyan
+        } else {
+            Write-Host "    WASM: Not found (expected at $wasmPath)" -ForegroundColor Yellow
+        }
+        
         Write-Host ""
         Write-Host "[*] Next steps:" -ForegroundColor Yellow
         Write-Host "    1. Place ROM files in ./roms/ directory" -ForegroundColor Cyan
@@ -226,7 +267,8 @@ if ($buildStatus -eq 0) {
         Write-Host "    3. Open: http://localhost:8000/test_vanilla.html" -ForegroundColor Cyan
         Write-Host "    4. Load ROM and play!" -ForegroundColor Cyan
     } else {
-        Write-Host "[-] Output files not found at expected location" -ForegroundColor Red
+        Write-Host "[-] Build reported success, but no .js output file found in mame/ directory." -ForegroundColor Yellow
+        Write-Host "    Check mame/build/ folder manually." -ForegroundColor Yellow
     }
 } else {
     Write-Host "`n[-] Build failed with status $buildStatus" -ForegroundColor Red

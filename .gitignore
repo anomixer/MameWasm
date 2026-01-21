@@ -1,13 +1,12 @@
 # Build artifacts
-mame/build/
-mame/obj/
-mame/*.o
-mame/*.a
+mame/
 
 # Emscripten
 emsdk/
 
 # Build tools
+bin/
+rom/
 bin/
 
 # ROMs (user private)
@@ -36,3 +35,8 @@ Thumbs.db
 *.js
 *.wasm
 mame.html
+
+# Tempfiles
+build_ninja.ps1
+compile_and_fix.ps1
+ninja.exe

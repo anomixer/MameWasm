@@ -6,6 +6,9 @@ param(
     [switch]$Force = $false
 )
 
+# Set encoding to UTF-8 to handle special characters correctly
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 Write-Host "`n[*] MAME WASM Build Factory - Setup" -ForegroundColor Cyan
 Write-Host "=====================================" -ForegroundColor Cyan
 
@@ -73,6 +76,8 @@ try {
             if ($LASTEXITCODE -eq 0) {
                 $installed = $true
                 Write-Host "   [+] Emscripten installed" -ForegroundColor Green
+            } else {
+                throw "Install failed with exit code $LASTEXITCODE"
             }
         } catch {
             $attempt++
@@ -80,7 +85,7 @@ try {
                 Write-Host "   [!] Retrying (file lock issue)... ($attempt/$maxRetries)" -ForegroundColor Yellow
                 Start-Sleep -Seconds 5
             } else {
-                Write-Host "   [!] Install had issues, but continuing..." -ForegroundColor Yellow
+                Write-Host "   [!] Install had issues, check output." -ForegroundColor Yellow
             }
         }
     }
@@ -88,7 +93,11 @@ try {
     # Activate
     Write-Host "   [*] Activating Emscripten..."
     ./emsdk.bat activate latest 2>$null
-    Write-Host "   [+] Emscripten activated" -ForegroundColor Green
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "   [+] Emscripten activated" -ForegroundColor Green
+    } else {
+         Write-Host "   [!] Emscripten activation failed." -ForegroundColor Red
+    }
     
 } finally {
     Pop-Location
@@ -123,14 +132,26 @@ if (Get-Command make -ErrorAction SilentlyContinue) {
         $wc.DownloadFile('http://gnuwin32.sourceforge.net/downlinks/make-dep-zip.php', 'bin/make-dep.zip')
         
         # Extract
+        $extractPath = (Resolve-Path 'bin').Path
         if (Test-Path 'C:/Program Files/7-Zip/7z.exe') {
             & 'C:/Program Files/7-Zip/7z.exe' x 'bin/make-bin.zip' -o'bin/' -y | Out-Null
             & 'C:/Program Files/7-Zip/7z.exe' x 'bin/make-dep.zip' -o'bin/' -y | Out-Null
         } else {
             $shell = New-Object -ComObject Shell.Application
-            $shell.NameSpace((Resolve-Path 'bin').Path).CopyHere($shell.NameSpace((Resolve-Path 'bin/make-bin.zip').Path).Items(), 16)
-            $shell.NameSpace((Resolve-Path 'bin').Path).CopyHere($shell.NameSpace((Resolve-Path 'bin/make-dep.zip').Path).Items(), 16)
-            Start-Sleep -Seconds 3
+            $zipBin = $shell.NameSpace((Resolve-Path 'bin/make-bin.zip').Path)
+            $zipDep = $shell.NameSpace((Resolve-Path 'bin/make-dep.zip').Path)
+            $dest = $shell.NameSpace($extractPath)
+            
+            $dest.CopyHere($zipBin.Items(), 16)
+            $dest.CopyHere($zipDep.Items(), 16)
+            
+            # Smart wait for extraction
+            $timeout = 20
+            $timer = 0
+            while (-not (Test-Path 'bin/bin/make.exe') -and $timer -lt $timeout) {
+                Start-Sleep -Seconds 1
+                $timer++
+            }
         }
         
         # Organize
@@ -144,10 +165,15 @@ if (Get-Command make -ErrorAction SilentlyContinue) {
         Remove-Item 'bin/make-bin.zip', 'bin/make-dep.zip', 'bin/bin' -Force -Recurse -ErrorAction SilentlyContinue
         
         $makePath = "bin/make.exe"
-        Write-Host "   [+] Make installed" -ForegroundColor Green
+        if (Test-Path $makePath) {
+             Write-Host "   [+] Make installed" -ForegroundColor Green
+        } else {
+             Write-Host "   [!] Make install failed (file not found after extraction)." -ForegroundColor Red
+        }
         
     } catch {
         Write-Host "   [!] Make download failed. Build may fail." -ForegroundColor Yellow
+        Write-Host "   [!] Error: $_" -ForegroundColor Red
     }
 }
 
