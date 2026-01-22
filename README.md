@@ -238,13 +238,10 @@ python server.py
 ```
 
 ### Step 2: Open Test Page
-- Vanilla Loader: http://localhost:8000/test_vanilla.html
-- Emularity Loader: http://localhost:8000/test_emularity.html
+- Vanilla Loader: http://localhost:8000/test_vanilla.html (Pre-configured for **Robby Roto**)
+- Emularity Loader: http://localhost:8000/test_emularity.html (Pre-configured for **Robby Roto**)
 
-### Step 3: Load Game
-1. Click "Choose File"
-2. Select ROM file (e.g., pacman.zip, invaders.zip)
-3. Click "Play"
+*Note: These test pages are hardcoded for Robby Roto. To test other games, you must manually edit the driver name and ROM paths within the HTML files.*
 
 ---
 

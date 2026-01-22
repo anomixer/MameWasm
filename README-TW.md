@@ -236,13 +236,10 @@ python server.py
 ```
 
 ### 步驟 2：打開測試頁面
-- Vanilla 載入器：http://localhost:8000/test_vanilla.html
-- Emularity 載入器：http://localhost:8000/test_emularity.html
+- Vanilla 載入器：http://localhost:8000/test_vanilla.html（預設測試 **Robby Roto**）
+- Emularity 載入器：http://localhost:8000/test_emularity.html（預設測試 **Robby Roto**）
 
-### 步驟 3：載入遊戲
-1. 點擊「Choose File」
-2. 選擇 ROM 檔案（例如 pacman.zip、invaders.zip）
-3. 點擊「Play」
+*注意：這些測試頁面針對 Robby Roto 進行了硬編碼配置。若要測試其他遊戲，您需要手動修改 HTML 檔案中的驅動程式名稱與 ROM 路徑。*
 
 ---
 
