@@ -160,19 +160,18 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 
 ---
 
-## 📈 大小和時間參考
+## 📈 構建輸出與效能參考
 
-| 構建 | 檔案大小 | 時間 | 用途 |
-|------|---------|------|------|
-| tiny（所有） | 30-50MB | 10-20 分 | 通用 WASM |
-| Pac-Man | 3-5MB | 5-10 分 | 單一遊戲 |
-| 太空侵略者 | 2-4MB | 5-10 分 | 經典街機 |
-| Robby Roto | 2-3MB | 5-10 分 | Midway 遊戲 |
-| pacmantest | 4MB | 2-5 分 | 測試 |
-| applulator | 40-50MB | 20-30 分 | Apple II |
-| arcade | 70-90MB | 45-60 分 | 僅街機 |
-| mess | 60-80MB | 45-60 分 | 家用電腦 |
-| mame（完整） | 80-100MB | 1-2 小時 | 所有系統 |
+| Subtarget | 輸出檔案 | 預估大小 | 預估時間 | 用途 |
+|-----------|---------|---------|---------|------|
+| **tiny** | `tiny.js`, `tiny.wasm` | 30-50MB | 10-20 分 | **推薦**（通用 WASM） |
+| **mame** | `mame.js`, `mame.wasm` | 80-100MB | 1-2 小時 | 完整版本（建議 16GB+ RAM） |
+| **arcade** | `arcade.js`, `arcade.wasm` | 70-90MB | 45-60 分 | 僅街機遊戲 |
+| **applulator** | `applulator.js`, `applulator.wasm` | 40-50MB | 20-30 分 | Apple II 系列 |
+| **mess** | `mess.js`, `mess.wasm` | 60-80MB | 45-60 分 | 家用電腦與主機 |
+| **pacmantest** | `pacman.js`, `pacman.wasm` | ~4MB | 2-5 分 | 快速測試 |
+
+*注意：輸出檔名通常對應於構建時使用的 `-Subtarget` 參數名稱。*
 
 ---
 
@@ -392,7 +391,7 @@ python server.py
 
 ---
 
-**最後更新**：2025-01-20
-**版本**：2.0（整合和清理）
+**最後更新**：2026-01-22
+**版本**：2.1（已驗證目標與修正）
 
 祝你順利！🎮

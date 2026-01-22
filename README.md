@@ -60,15 +60,17 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 ### SUBTARGET
 **Which drivers/systems to compile**
 
-| SUBTARGET | Description | Use Case | Size | Time |
-|-----------|------------|----------|------|------|
-| `tiny` ⭐ | **RECOMMENDED** Minimal build | General WASM | 30-50MB | 10-20 min |
-| `mame` | Full MAME (all arcade) | Complete emulator | 80-100MB | 1-2 hours |
-| `mess` | Retro computers & consoles | Home systems | 60-80MB | 45-60 min |
-| `arcade` | Arcade games only | Arcade-only | 70-90MB | 45-60 min |
-| `pacmantest` | Pac-Man test build | Quick test | 4MB | 2-5 min |
-| `applulator` | Apple II systems | Apple II emulation | 40-50MB | 20-30 min |
-| `pacem` | Pac-Man variants | Minimal | 5-8MB | 5-10 min |
+| SUBTARGET | Description | Use Case | Size | Time | Note |
+|-----------|------------|----------|------|------|------|
+| `tiny` ⭐ | **RECOMMENDED** Minimal build | General WASM | 30-50MB | 10-20 min | Best for testing |
+| `mame` | Full MAME (all arcade) | Complete emulator | 80-100MB | 1-2 hours | **Requires 16GB+ RAM** |
+| `mess` | Retro computers & consoles | Home systems | 60-80MB | 45-60 min | Large build |
+| `arcade` | Arcade games only | Arcade-only | 70-90MB | 45-60 min | Large build |
+| `applulator` | Apple II family | Apple II emulation | 40-50MB | 20-30 min | Specific system |
+| `pacmantest` | Pac-Man test build | Quick test | 4MB | 2-5 min | Fastest |
+| `pacem` | Pac-Man + Puckman | Minimal test | 5-8MB | 5-10 min | Fast |
+
+*Note: The build script automatically enables memory optimizations (ALLOW_MEMORY_GROWTH) for large builds like 'mame' and 'mess'.*
 
 ### SOURCES
 **Specific driver files to include** (optional)
@@ -160,19 +162,18 @@ Fast (5 min) + Small (3-5MB) + Focused (one game)
 
 ---
 
-## 📈 Size & Time Reference
+## 📈 Build Output & Performance
 
-| Build | File Size | Time | Use Case |
-|-------|-----------|------|----------|
-| tiny (all) | 30-50MB | 10-20 min | General WASM |
-| Pac-Man | 3-5MB | 5-10 min | Single game |
-| Space Invaders | 2-4MB | 5-10 min | Classic arcade |
-| Robby Roto | 2-3MB | 5-10 min | Midway game |
-| pacmantest | 4MB | 2-5 min | Testing |
-| applulator | 40-50MB | 20-30 min | Apple II |
-| arcade | 70-90MB | 45-60 min | Arcades only |
-| mess | 60-80MB | 45-60 min | Home computers |
-| mame (full) | 80-100MB | 1-2 hours | Everything |
+| Subtarget | Output Files | Est. Size | Est. Time | Use Case |
+|-----------|--------------|-----------|-----------|----------|
+| **tiny** | `tiny.js`, `tiny.wasm` | 30-50MB | 10-20 min | **Recommended** (General WASM) |
+| **mame** | `mame.js`, `mame.wasm` | 80-100MB | 1-2 hours | Full Build (Requires 16GB+ RAM) |
+| **arcade** | `arcade.js`, `arcade.wasm` | 70-90MB | 45-60 min | Arcade games only |
+| **applulator** | `applulator.js`, `applulator.wasm` | 40-50MB | 20-30 min | Apple II family |
+| **mess** | `mess.js`, `mess.wasm` | 60-80MB | 45-60 min | Home computers & consoles |
+| **pacmantest** | `pacman.js`, `pacman.wasm` | ~4MB | 2-5 min | Quick testing |
+
+*Note: Filenames correspond to the `-Subtarget` parameter used during build.*
 
 ---
 
@@ -392,7 +393,7 @@ For more details on specific games or drivers, see the "Game Driver Paths" table
 
 ---
 
-**Last Updated**: 2025-01-20
-**Version**: 2.0 (Integrated & Cleaned)
+**Last Updated**: 2026-01-22
+**Version**: 2.1 (Verified Targets & Patches)
 
 Good luck! 🎮

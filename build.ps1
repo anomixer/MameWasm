@@ -2,9 +2,10 @@
 # Interactive script to compile MAME to WebAssembly
 
 param(
-    [string]$Target = "",
+    [string]$Target = "mame",
     [string]$Subtarget = "",
     [string]$Sources = "",
+    [string]$Debug = "Y",
     [switch]$Help = $false
 )
 
@@ -26,6 +27,7 @@ Common Subtargets:
     mess         - Computers & consoles      ~60-80MB
     arcade       - Arcade games only         ~70-90MB
     pacmantest   - Pac-Man test build        ~4MB (fastest!)
+    pacem        - Pac-Man + Puckman         ~5-8MB
 
 Common Sources:
     pacman       - Pac-Man
@@ -60,11 +62,17 @@ if (!(Test-Path "emsdk/emsdk_env.ps1")) {
 }
 
 # Activate Emscripten
-. ./emsdk/emsdk_env.ps1
+try {
+    . ./emsdk/emsdk_env.ps1
+} catch {
+    Write-Host "[-] Error loading Emscripten environment script: $_" -ForegroundColor Yellow
+}
 
 # Verify emcc is in path
 if (!(Get-Command emcc -ErrorAction SilentlyContinue)) {
     Write-Host "[-] Emscripten activation failed. 'emcc' not found in PATH." -ForegroundColor Red
+    Write-Host "    HINT: You may need to run this script with Execution Policy Bypass:" -ForegroundColor Yellow
+    Write-Host "    PowerShell -ExecutionPolicy Bypass -File ./build.ps1" -ForegroundColor Cyan
     exit 1
 }
 
@@ -80,33 +88,16 @@ $env:PATH = "$PWD/bin;$env:PATH"
 # Add Git Unix tools to PATH (Dynamically find Git)
 $gitCmd = Get-Command git -ErrorAction SilentlyContinue
 if ($gitCmd) {
-    # Resolve 'C:\Program Files\Git\cmd\git.exe' -> 'C:\Program Files\Git\usr\bin'
     $gitRoot = (Get-Item $gitCmd.Source).Directory.Parent.FullName
     $gitUsrBin = Join-Path $gitRoot "usr\bin"
     
     if (Test-Path $gitUsrBin) {
         $env:PATH = "$gitUsrBin;$env:PATH"
         Write-Host "[+] Git Unix tools added to PATH (Detected: $gitUsrBin)" -ForegroundColor Green
-    } else {
-        # Fallback to standard locations
-        $gitPaths = @(
-            "C:/Program Files/Git/usr/bin",
-            "C:/Program Files (x86)/Git/usr/bin",
-            "$ENV:ProgramFiles/Git/usr/bin"
-        )
-        foreach ($gitPath in $gitPaths) {
-            if (Test-Path $gitPath) {
-                $env:PATH = "$gitPath;$env:PATH"
-                Write-Host "[+] Git Unix tools added to PATH (Standard)" -ForegroundColor Green
-                break
-            }
-        }
     }
 }
 
 # CRITICAL: Set TOOLCHAIN to empty to prevent MAME from auto-detecting GCC
-# MAME's scripts/toolchain.lua will default to system compiler if TOOLCHAIN is set
-# By leaving it empty, emmake's CC/CXX overrides will work
 $env:TOOLCHAIN = ""
 $env:EMSCRIPTEN = "$PWD/emsdk/upstream/emscripten"
 
@@ -136,20 +127,19 @@ if (-not $Subtarget) {
     Write-Host "  mess       - Retro computers & consoles ~60-80MB, 45-60 min" -ForegroundColor Gray
     Write-Host "  arcade     - Arcade games only ~70-90MB, 45-60 min" -ForegroundColor Gray
     Write-Host "  pacmantest - Pac-Man test build ~4MB, 2-5 min (FASTEST)" -ForegroundColor Yellow
+    Write-Host "  pacem      - Pac-Man + Puckman ~5-8MB, 3-7 min" -ForegroundColor Yellow
     $Subtarget = Read-Host "`nChoose SUBTARGET (default: tiny)"
     if (-not $Subtarget) { $Subtarget = "tiny" }
 }
 Write-Host "  Selected: $Subtarget" -ForegroundColor Green
 
 # SOURCES
-if ($Sources -eq "") {
+if ($Sources -eq "" -and $PSBoundParameters.ContainsKey('Sources') -eq $false) {
     Write-Host "`n[SOURCES] Available options:" -ForegroundColor Cyan
     Write-Host "  (leave empty)              - All drivers in SUBTARGET" -ForegroundColor Gray
     Write-Host "  pacman                     - Pac-Man (auto-convert to full path)" -ForegroundColor Gray
     Write-Host "  robby                      - Robby Roto (auto-convert to full path)" -ForegroundColor Gray
     Write-Host "  src/mame/pacman/pacman.cpp - Pac-Man (full path)" -ForegroundColor Gray
-    Write-Host "  src/mame/midway/astrocde.cpp - Robby Roto (full path)" -ForegroundColor Gray
-    Write-Host "  src/mame/midw8080/mw8080bw.cpp - Space Invaders (full path)" -ForegroundColor Gray
     Write-Host "  file1.cpp,file2.cpp        - Multiple drivers (comma-separated)" -ForegroundColor Gray
     $Sources = Read-Host "`nChoose SOURCES (press Enter for all)"
 }
@@ -165,22 +155,18 @@ if ($Sources) {
     Write-Host "  Selected: (all drivers)" -ForegroundColor Green
 }
 
-# Exception handling
-Write-Host "`n[EXCEPTIONS] Debug mode:" -ForegroundColor Cyan
-Write-Host "  Y - Enable exceptions (slower, better debugging)" -ForegroundColor Gray
-Write-Host "  n - Disable exceptions (faster compilation)" -ForegroundColor Gray
-$Exception = Read-Host "`nEnable exception handling? (default: Y)"
+# Exception handling / Debug Mode
+if ($Debug -eq "Y" -and $PSBoundParameters.ContainsKey('Debug') -eq $false -and -not $Subtarget) {
+    $Debug = Read-Host "`nEnable exception handling? (Y/n)"
+    if (-not $Debug) { $Debug = "Y" }
+}
 
-# Fix Logic: 
-# If User says 'n' (Disable), we want DISABLE_EXCEPTION_CATCHING=1 (True, Disable it)
-# If User says 'Y' (Enable), we want DISABLE_EXCEPTION_CATCHING=0 (False, Don't disable it)
-
-if ($Exception -like "n*") {
+if ($Debug -like "n*") {
     $DisableExceptions = "1"
-    Write-Host "  Selected: Disabled (faster)" -ForegroundColor Green
+    Write-Host "  Selected: Exceptions Disabled (faster)" -ForegroundColor Green
 } else {
     $DisableExceptions = "0"
-    Write-Host "  Selected: Enabled (slower, better debugging)" -ForegroundColor Green
+    Write-Host "  Selected: Exceptions Enabled (slower, better debugging)" -ForegroundColor Green
 }
 
 # ============================================================================
@@ -189,48 +175,159 @@ if ($Exception -like "n*") {
 
 Write-Host "`n[*] Preparing build..." -ForegroundColor Yellow
 
-cd mame
-
-# Determine CPU cores for -j flag (Default to processors - 1, min 1)
+# Determine CPU cores for -j flag
 $cores = 1
 if ($env:NUMBER_OF_PROCESSORS) {
     $cores = [int]$env:NUMBER_OF_PROCESSORS
     if ($cores -gt 1) { $cores-- }
 }
 
-# Build command for Emscripten WebAssembly compilation
-# Key points:
-# 1. emmake wrapper ensures Emscripten environment is used
-# 2. Target 'asmjs' triggers MAME's specific Emscripten/WASM build logic
-# 3. OVERRIDE_CC/OVERRIDE_CXX forces emcc/em++
-$buildCmd = "emmake make asmjs"
-$buildCmd += " TARGET=$Target"
-$buildCmd += " SUBTARGET=$Subtarget"
-if ($Sources) {
-    $buildCmd += " SOURCES=$Sources"
+# Check for Ninja
+$useNinja = $false
+if (Get-Command ninja -ErrorAction SilentlyContinue) {
+    $useNinja = $true
+    Write-Host "[*] Ninja build system detected. Using Ninja to bypass Windows limits." -ForegroundColor Cyan
 }
-# CROSS_BUILD=1 is implied by asmjs target in some MAME versions, but good to be explicit if needed.
-# However, 'asmjs' target usually handles toolchain setup.
-$buildCmd += " OVERRIDE_CC=emcc.bat OVERRIDE_CXX=em++.bat"
-$buildCmd += " -j $cores NOWERROR=1"
-$buildCmd += " DISABLE_EXCEPTION_CATCHING=$DisableExceptions"
 
-Write-Host "[+] Build configuration ready" -ForegroundColor Green
-Write-Host "[*] Command: $buildCmd" -ForegroundColor DarkGray
+Write-Host "[*] Step 1: Running pre-build generation (layouts, version)..." -ForegroundColor Yellow
 
-# ============================================================================
-# BUILD EXECUTION
-# ============================================================================
+$initialDir = $PSScriptRoot
+Push-Location "mame"
 
-Write-Host "`n[*] Starting MAME compilation..." -ForegroundColor Yellow
-Write-Host "[*] This may take 5 minutes to 2 hours depending on SUBTARGET" -ForegroundColor Cyan
-Write-Host ""
+try {
+    # Generate layouts and version files
+    $preBuildCmd = "make generate TARGET=$Target SUBTARGET=$Subtarget IGNORE_GIT=1"
+    Write-Host "[*] Command: $preBuildCmd" -ForegroundColor DarkGray
+    Invoke-Expression $preBuildCmd
 
-# Run build
-Invoke-Expression $buildCmd
-$buildStatus = $LASTEXITCODE
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[-] Pre-build generation failed." -ForegroundColor Red
+        exit 1
+    }
 
-cd ..
+    # Step 2: Generate Project Files
+    if ($useNinja) {
+        Write-Host "[*] Step 2: Generating Ninja project files (Direct Genie invocation)..." -ForegroundColor Yellow
+        
+        $genieExe = "$PWD/3rdparty/genie/bin/windows/genie.exe"
+        if (-not (Test-Path $genieExe)) {
+            Write-Host "[-] Genie not found at $genieExe." -ForegroundColor Red
+            exit 1
+        }
+
+        $genieArgs = @(
+            "--file=scripts/genie.lua",
+            "--build-dir=build",
+            "--osd=sdl",
+            "--targetos=asmjs",
+            "--gcc=asmjs",
+            "--gcc_version=22.0.0",
+            "--target=$Target",
+            "--subtarget=$Subtarget",
+            "--PLATFORM=x64",
+            "--with-emulator",
+            "ninja"
+        )
+        
+        # Only apply --SOURCES if NOT using our custom test targets
+        if ($Sources -and $Subtarget -notin @("pacmantest", "pacem")) {
+            $genieArgs += "--SOURCES=$Sources"
+            Write-Host "[+] Applying specific SOURCES='$Sources' to project generation." -ForegroundColor Green
+        }
+
+        $proc = Start-Process -FilePath $genieExe -ArgumentList $genieArgs -NoNewWindow -PassThru -Wait
+        if ($proc.ExitCode -ne 0) {
+            Write-Host "[-] Genie project generation failed." -ForegroundColor Red
+            exit 1
+        }
+
+        # Step 3: Post-process Ninja files to fix long command lines on Windows
+        Write-Host "[*] Step 3: Patching Ninja files for Windows command length limits..." -ForegroundColor Yellow
+        $solName = if ($Target -eq $Subtarget) { $Target } else { "$Target$Subtarget" }
+        $ninjaPath = "build/projects/sdl/$solName/ninja-asmjs/release"
+        
+        if (Test-Path $ninjaPath) {
+            $files = Get-ChildItem -Path $ninjaPath -Filter "*.ninja"
+            foreach ($file in $files) {
+                # Read content
+                $content = [System.IO.File]::ReadAllText($file.FullName)
+                
+                # Patch rule ar
+                # We use -replace with a regex that captures the tool path
+                $arPattern = 'rule ar\s+command\s+= cmd /c "(.+?)emar \$flags \$out \$in \$libs"'
+                $arReplacement = "rule ar`n  command         = cmd /c `"`$1emar `$flags `$out @`$out.rsp`"`n  description     = ar `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$in `$libs"
+                
+                if ($content -match $arPattern) {
+                    $content = $content -replace $arPattern, $arReplacement
+                }
+                
+                # Patch rule link
+                $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
+                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
+                
+                if ($content -match $linkPattern) {
+                    $content = $content -replace $linkPattern, $linkReplacement
+                }
+
+                # CRITICAL: Remove SDL2_fake which causes wasm-ld errors
+                $content = $content -replace '-lSDL2_fake', ''
+                
+                # CRITICAL: Remove -Werror to prevent warnings from breaking the build
+                $content = $content -replace '-Werror', ''
+
+                # CRITICAL: Increase INITIAL_MEMORY for full build
+                # MAME full build needs > 68MB initial memory. We set it to 512MB to be safe.
+                $content = $content -replace '-s INITIAL_MEMORY=\d+MB', '-s INITIAL_MEMORY=512MB'
+                
+                # Write back with UTF8 no BOM
+                $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+                [System.IO.File]::WriteAllText($file.FullName, $content, $utf8NoBom)
+            }
+            Write-Host "   [+] Patched $(($files).Count) ninja files with correct encoding." -ForegroundColor Green
+        }
+    }
+
+    # ============================================================================
+    # BUILD EXECUTION
+    # ============================================================================
+
+    if ($useNinja) {
+        Write-Host "`n[*] Starting Ninja build..." -ForegroundColor Yellow
+        
+        $solName = if ($Target -eq $Subtarget) { $Target } else { "$Target$Subtarget" }
+        $expectedNinjaDir = "build/projects/sdl/$solName/ninja-asmjs/release"
+        
+        if (-not (Test-Path $expectedNinjaDir)) {
+             $ninjaFiles = Get-ChildItem -Path "build" -Recurse -Filter "build.ninja"
+             $ninjaFile = $ninjaFiles | Where-Object { $_.Directory.Name -match "release" } | Select-Object -First 1
+             if ($ninjaFile) { $ninjaDir = $ninjaFile.Directory.FullName }
+        } else {
+             $ninjaDir = (Get-Item $expectedNinjaDir).FullName
+        }
+        
+        if ($ninjaDir) {
+            Write-Host "   [+] build.ninja found at: $ninjaDir" -ForegroundColor Green
+            $ninjaCmd = "emmake ninja -j $cores -C `"$ninjaDir`""
+            Write-Host "[*] Ninja Command: $ninjaCmd" -ForegroundColor DarkGray
+            Invoke-Expression $ninjaCmd
+            $buildStatus = $LASTEXITCODE
+        } else {
+            Write-Host "[-] Error: build.ninja not found." -ForegroundColor Red
+            $buildStatus = 1
+        }
+    } else {
+        Write-Host "`n[*] Starting Make build..." -ForegroundColor Yellow
+        $makeCmd = "emmake make asmjs TARGET=$Target SUBTARGET=$Subtarget"
+        if ($Sources) { $makeCmd += " SOURCES=$Sources" }
+        $makeCmd += " OVERRIDE_CC=emcc.bat OVERRIDE_CXX=em++.bat IGNORE_GIT=1"
+        $makeCmd += " -j $cores NOWERROR=1 DISABLE_EXCEPTION_CATCHING=$DisableExceptions CLANG_VERSION=22.0.0"
+        Invoke-Expression $makeCmd
+        $buildStatus = $LASTEXITCODE
+    }
+
+} finally {
+    Set-Location $initialDir
+}
 
 # ============================================================================
 # COMPLETION
@@ -238,42 +335,41 @@ cd ..
 
 if ($buildStatus -eq 0) {
     Write-Host "`n[+] Build successful!" -ForegroundColor Green
-    Write-Host "==========================" -ForegroundColor Green
     
-    # Smart File Detection (Search for newest JS file in build folder)
-    $jsFile = Get-ChildItem -Path "mame" -Recurse -Filter "*.js" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    
-    if ($jsFile) {
-        $jsPath = $jsFile.FullName
-        # Assuming wasm is next to it
-        $wasmPath = $jsPath -replace "\.js$", ".wasm"
-        
-        $jsSize = $jsFile.Length / 1MB
-        
-        Write-Host "[+] Output files found:" -ForegroundColor Green
-        Write-Host "    JS:   $jsPath ($([math]::Round($jsSize, 2)) MB)" -ForegroundColor Cyan
-        
-        if (Test-Path $wasmPath) {
-            $wasmSize = (Get-Item $wasmPath).Length / 1MB
-            Write-Host "    WASM: $wasmPath ($([math]::Round($wasmSize, 2)) MB)" -ForegroundColor Cyan
-        } else {
-            Write-Host "    WASM: Not found (expected at $wasmPath)" -ForegroundColor Yellow
+    # Try multiple naming conventions
+    $possibleNames = @(
+        "$Target$Subtarget",           # mametiny
+        "${Target}_${Subtarget}",      # mame_tiny
+        $Subtarget                     # tiny
+    )
+    if ($Sources) { $possibleNames += $Subtarget }
+
+    $found = $false
+    foreach ($name in $possibleNames) {
+        $jsSearchPaths = @(
+            "$PWD/mame/$name.js",
+            "$PWD/mame/build/asmjs/bin/$name.js"
+        )
+        foreach ($path in $jsSearchPaths) {
+            if (Test-Path $path) {
+                $jsPath = $path
+                $wasmPath = $jsPath -replace "\.js$", ".wasm"
+                $found = $true
+                break
+            }
         }
-        
-        Write-Host ""
-        Write-Host "[*] Next steps:" -ForegroundColor Yellow
-        Write-Host "    1. Place ROM files in ./roms/ directory" -ForegroundColor Cyan
-        Write-Host "    2. Run: python server.py" -ForegroundColor Cyan
-        Write-Host "    3. Open: http://localhost:8000/test_vanilla.html" -ForegroundColor Cyan
-        Write-Host "    4. Load ROM and play!" -ForegroundColor Cyan
+        if ($found) { break }
+    }
+    
+    if ($found) {
+        $jsSize = (Get-Item $jsPath).Length / 1MB
+        $wasmSize = if (Test-Path $wasmPath) { (Get-Item $wasmPath).Length / 1MB } else { 0 }
+        Write-Host "[+] Output JS:   $jsPath ($([math]::Round($jsSize, 2)) MB)" -ForegroundColor Green
+        Write-Host "[+] Output WASM: $wasmPath ($([math]::Round($wasmSize, 2)) MB)" -ForegroundColor Green
     } else {
-        Write-Host "[-] Build reported success, but no .js output file found in mame/ directory." -ForegroundColor Yellow
-        Write-Host "    Check mame/build/ folder manually." -ForegroundColor Yellow
+        Write-Host "[-] Could not find expected output file. Checked: $($possibleNames -join ', ')" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "`n[-] Build failed with status $buildStatus" -ForegroundColor Red
-    Write-Host "[-] Check output above for errors" -ForegroundColor Red
+    Write-Host "`n[-] Build failed." -ForegroundColor Red
     exit 1
 }
-
-Write-Host ""
