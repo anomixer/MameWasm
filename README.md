@@ -141,8 +141,9 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 - Type `robby` → auto-converts to driver path
 
 ### Tip 2: Exception Handling
-- `Enable` (default): Slower but better debugging
-- `Disable`: Faster if you don't need debugging info
+- `Enable` (default): Slower but enables stack traces for crash analysis.
+- `Disable`: Faster compilation and execution, use for production.
+*Note: The MAME internal debugger is disabled by default to prevent web UI issues.*
 
 ### Tip 3: Incremental Builds
 - Same SUBTARGET: 1-5 minutes

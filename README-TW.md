@@ -139,8 +139,9 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 - 輸入 `robby` → 自動轉換為驅動程式路徑
 
 ### 提示 2：異常處理
-- `Enable`（預設）：較慢但有更好的除錯
-- `Disable`：如不需除錯則較快
+- `Enable`（預設）：較慢但開啟錯誤追蹤（Stack Trace），適合排查崩潰。
+- `Disable`：編譯與執行較快，適合生產環境。
+*注意：預設不開啟 MAME 內部除錯器，以避免網頁介面卡頓。*
 
 ### 提示 3：增量編譯
 - 相同 SUBTARGET：1-5 分鐘

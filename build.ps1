@@ -167,11 +167,11 @@ if ($Debug -eq "Y" -and $PSBoundParameters.ContainsKey('Debug') -eq $false -and 
 if ($Debug -like "n*") {
     $DisableExceptions = "1"
     $MameDebug = "0"
-    Write-Host "  Selected: Exceptions & Debugger Disabled (faster)" -ForegroundColor Green
+    Write-Host "  Selected: Exceptions Disabled (faster)" -ForegroundColor Green
 } else {
     $DisableExceptions = "0"
-    $MameDebug = "1"
-    Write-Host "  Selected: Exceptions & Debugger Enabled (slower, better debugging)" -ForegroundColor Green
+    $MameDebug = "0" # Keep MAME internal debugger OFF by default to avoid web UI issues
+    Write-Host "  Selected: Exceptions Enabled (stack traces visible)" -ForegroundColor Green
 }
 
 # ============================================================================
