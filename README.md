@@ -270,6 +270,12 @@ python server.py
 # 3-5MB instead of 30-50MB
 ```
 
+### Issue: Build aborts with "Aborted()" error
+- **Cause**: Usually WASM memory exhaustion or a runtime exception.
+- **Solution 1**: Ensure you are using the latest `build.ps1` which enables `ALLOW_MEMORY_GROWTH=1`.
+- **Solution 2**: Rebuild with `-Debug Y` to see the actual error message in the console.
+- **Solution 3**: Check Browser Console (F12) for specific JavaScript or WASM errors.
+
 ### Issue: Path contains Chinese characters
 ```
 ❌ Wrong: C:\遊戲\mame-wasm
