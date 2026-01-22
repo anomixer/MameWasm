@@ -107,7 +107,7 @@
             Module.addRunDependency('robby_rom'); // Pause runtime start
 
             var xhr = new XMLHttpRequest();
-            xhr.open('GET', 'robby.zip', true);
+            xhr.open('GET', 'roms/robby.zip', true);
             xhr.responseType = 'arraybuffer';
             xhr.onload = function (e) {
                 if (this.status == 200) {

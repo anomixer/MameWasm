@@ -30,7 +30,7 @@ Common Subtargets:
 
 Common Sources:
     pacman       - Pac-Man
-    robby        - Robby Roto
+    robby        - Robby Roto (ROM included for testing!)
     src/mame/pacman/pacman.cpp                     - Pac-Man (full path)
     src/mame/midway/astrocde.cpp                   - Robby Roto (full path)
     src/mame/midw8080/mw8080bw.cpp                 - Space Invaders (full path)
@@ -136,7 +136,7 @@ if ($Sources -eq "" -and $PSBoundParameters.ContainsKey('Sources') -eq $false) {
     Write-Host "`n[SOURCES] Available options:" -ForegroundColor Cyan
     Write-Host "  (leave empty)              - All drivers in SUBTARGET" -ForegroundColor Gray
     Write-Host "  pacman                     - Pac-Man (auto-convert to full path)" -ForegroundColor Gray
-    Write-Host "  robby                      - Robby Roto (auto-convert to full path)" -ForegroundColor Gray
+    Write-Host "  robby                      - Robby Roto (ROM included!)" -ForegroundColor Gray
     Write-Host "  src/mame/pacman/pacman.cpp - Pac-Man (full path)" -ForegroundColor Gray
     Write-Host "  file1.cpp,file2.cpp        - Multiple drivers (comma-separated)" -ForegroundColor Gray
     $Sources = Read-Host "`nChoose SOURCES (press Enter for all)"
@@ -373,6 +373,15 @@ if ($buildStatus -eq 0) {
         $wasmSize = if (Test-Path $wasmPath) { (Get-Item $wasmPath).Length / 1MB } else { 0 }
         Write-Host "[+] Output JS:   $jsPath ($([math]::Round($jsSize, 2)) MB)" -ForegroundColor Green
         Write-Host "[+] Output WASM: $wasmPath ($([math]::Round($wasmSize, 2)) MB)" -ForegroundColor Green
+        
+        # Copy to root for testing
+        Write-Host "`n[*] Copying artifacts to project root for testing..." -ForegroundColor Yellow
+        Copy-Item $jsPath "$PSScriptRoot/$($name).js" -Force
+        if (Test-Path $wasmPath) {
+            Copy-Item $wasmPath "$PSScriptRoot/$($name).wasm" -Force
+        }
+        Write-Host "   [+] Copied to $PSScriptRoot/$($name).js" -ForegroundColor Green
+        
     } else {
         Write-Host "[-] Could not find expected output file. Checked: $($possibleNames -join ', ')" -ForegroundColor Yellow
     }

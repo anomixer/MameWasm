@@ -152,7 +152,7 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 2. 放入 ROM ZIP 檔案：
    - pacman.zip
    - invaders.zip（太空侵略者）
-   - astrocde.zip（Robby Roto）
+   - robby.zip (Robby Roto, 由setup.ps1自動下載)
 3. ROM 必須與編譯的系統相符
 ```
 

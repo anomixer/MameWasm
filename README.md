@@ -154,7 +154,7 @@ Fast (5 min) + Small (3-5MB) + Focused (one game)
 2. Place ROM ZIPs there:
    - pacman.zip
    - invaders.zip (for Space Invaders)
-   - astrocde.zip (for Robby Roto)
+   - robby.zip (for Robby Roto, auto-download by setup.ps1)
 3. ROMs must match compiled systems
 ```
 

@@ -16,7 +16,7 @@ Write-Host "=====================================" -ForegroundColor Cyan
 # PHASE 1: PREREQUISITES
 # ============================================================================
 
-Write-Host "`n[1/4] Checking Prerequisites..." -ForegroundColor Yellow
+Write-Host "`n[1/5] Checking Prerequisites..." -ForegroundColor Yellow
 
 $prereqs_ok = $true
 
@@ -45,7 +45,7 @@ if (-not $prereqs_ok -and -not $SkipValidation) {
 # PHASE 2: EMSCRIPTEN SDK
 # ============================================================================
 
-Write-Host "`n[2/4] Setting up Emscripten SDK..." -ForegroundColor Yellow
+Write-Host "`n[2/5] Setting up Emscripten SDK..." -ForegroundColor Yellow
 
 if ((Test-Path "emsdk") -and -not $Force) {
     Write-Host "   [*] emsdk folder exists (use -Force to reinstall)" -ForegroundColor Cyan
@@ -107,7 +107,7 @@ try {
 # PHASE 3: BUILD TOOLS
 # ============================================================================
 
-Write-Host "`n[3/4] Setting up Build Tools..." -ForegroundColor Yellow
+Write-Host "`n[3/5] Setting up Build Tools..." -ForegroundColor Yellow
 
 # --- Make ---
 Write-Host "   [*] Checking Make..." -ForegroundColor Cyan
@@ -239,7 +239,7 @@ if ($gccSystemPath -and -not (Test-Path "$binDir/gcc.exe")) {
 # PHASE 4: SOURCE CODE
 # ============================================================================
 
-Write-Host "`n[4/4] Setting up Source Code..." -ForegroundColor Yellow
+Write-Host "`n[4/5] Setting up Source Code..." -ForegroundColor Yellow
 
 # --- MAME ---
 if ((Test-Path "mame") -and -not $Force) {
@@ -255,6 +255,30 @@ if (Test-Path "emularity/loader.js") {
     Write-Host "   [+] Emularity loader found" -ForegroundColor Green
 } else {
     Write-Host "   [!] emularity/loader.js not found (optional)" -ForegroundColor Yellow
+}
+
+# ============================================================================
+# PHASE 5: ROMS
+# ============================================================================
+
+Write-Host "`n[5/5] Setting up ROMs..." -ForegroundColor Yellow
+
+if (!(Test-Path "roms")) {
+    New-Item -ItemType Directory -Path "roms" | Out-Null
+}
+
+$robbyPath = "roms/robby.zip"
+if (Test-Path $robbyPath) {
+    Write-Host "   [+] robby.zip already exists" -ForegroundColor Green
+} else {
+    Write-Host "   [*] Downloading robby.zip (Free ROM from mamedev.org)..." -ForegroundColor Cyan
+    try {
+        $wc = New-Object System.Net.WebClient
+        $wc.DownloadFile('https://www.mamedev.org/roms/robby/robby.zip', $robbyPath)
+        Write-Host "   [+] robby.zip downloaded successfully" -ForegroundColor Green
+    } catch {
+        Write-Host "   [!] Failed to download robby.zip: $_" -ForegroundColor Yellow
+    }
 }
 
 # ============================================================================

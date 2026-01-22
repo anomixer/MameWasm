@@ -43,9 +43,9 @@
                 null,
                 new JSMAMELoader(JSMAMELoader.driver("robby"),
                     JSMAMELoader.nativeResolution(640, 480),
-                    JSMAMELoader.emulatorJS("mame.js"),
-                    JSMAMELoader.emulatorWASM("mame.wasm"),
-                    JSMAMELoader.mountFile("robby.zip", JSMAMELoader.fetchFile("Game File", "robby.zip")),
+                    JSMAMELoader.emulatorJS("tiny.js"),
+                    JSMAMELoader.emulatorWASM("tiny.wasm"),
+                    JSMAMELoader.mountFile("robby.zip", JSMAMELoader.fetchFile("Game File", "roms/robby.zip")),
                     JSMAMELoader.extraArgs(["-verbose", "-window", "-video", "soft", "-resolution", "640x480"])
                 ));
             emulator.start({ waitAfterDownloading: true });
