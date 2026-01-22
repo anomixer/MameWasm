@@ -37,11 +37,13 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
    - Installs Emscripten SDK
    - Downloads make and GCC tools
    - Clones MAME source code
+   - Downloads robby.zip (test ROM)
 
 2. **build.ps1** (repeatable):
    - Interactive interface
    - Asks for TARGET, SUBTARGET, SOURCES
    - Compiles MAME to WebAssembly
+   - Copies artifacts to root for testing
 
 3. **Test**:
    - `python server.py` to start local server
@@ -60,13 +62,13 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 ### SUBTARGET
 **Which drivers/systems to compile**
 
-| SUBTARGET | Description | Use Case | Note |
-|-----------|-------------|----------|------|
-| `mame` | **Default** | Standard Build | Default if unspecified. Large build. |
-| `tiny` | Predefined Minimal | Quick Testing | Defined in `scripts/target/mame/tiny.lua` |
-| `arcade` | Predefined Arcade | Arcade Only | Defined in `scripts/target/mame/arcade.lua` |
-| `mess` | Predefined Systems | Computers & Consoles | Defined in `scripts/target/mame/mess.lua` |
-| `<custom>` | User Defined | Specific Drivers | Use with `SOURCES`. E.g., `pacmantest`. |
+| SUBTARGET | Description | Use Case | Size | Time | Note |
+|-----------|-------------|----------|------|------|------|
+| `mame` | **Default** | Standard Build | 80-100MB | 1-2 hours | Default if unspecified. |
+| `tiny` ⭐ | **RECOMMENDED** | General WASM | 30-50MB | 10-20 min | Best for testing |
+| `arcade` | Predefined Arcade | Arcade Only | 70-90MB | 45-60 min | Large build |
+| `mess` | Predefined Systems | Computers & Consoles | 60-80MB | 45-60 min | Large build |
+| `<custom>` | User Defined | Specific Drivers | Varies | Varies | Use with `SOURCES`. |
 
 *Note: The build script automatically enables memory optimizations (ALLOW_MEMORY_GROWTH) for large builds like 'mame' and 'mess'.*
 

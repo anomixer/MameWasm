@@ -37,11 +37,13 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
    - 安裝 Emscripten SDK
    - 下載 make 和 GCC 工具
    - 複製 MAME 源代碼
+   - 下載 robby.zip (測試用 ROM)
 
 2. **build.ps1**（可重複使用）：
    - 互動式介面
    - 詢問 TARGET、SUBTARGET、SOURCES
    - 編譯 MAME 為 WebAssembly
+   - 將編譯產物複製到根目錄方便測試
 
 3. **測試**：
    - `python server.py` 啟動本地伺服器
@@ -60,13 +62,13 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 ### SUBTARGET
 **指定要編譯的驅動程式/系統**
 
-| SUBTARGET | 說明 | 實際用途 | 備註 |
-|-----------|------|----------|------|
-| `mame` | **預設值** | 標準構建 | 若未指定則使用此值 |
-| `tiny` | 預定義最小化 | 快速測試 | 定義於 `scripts/target/mame/tiny.lua` |
-| `arcade` | 預定義街機 | 僅街機驅動 | 定義於 `scripts/target/mame/arcade.lua` |
-| `mess` | 預定義家用系統 | 電腦與主機 | 定義於 `scripts/target/mame/mess.lua` |
-| `<custom>` | 用戶自訂 | 指定特定驅動 | 搭配 `SOURCES` 使用。例：`pacmantest` |
+| SUBTARGET | 說明 | 實際用途 | 大小 | 時間 | 備註 |
+|-----------|------|----------|------|------|------|
+| `mame` | **預設值** | 標準構建 | 80-100MB | 1-2 小時 | 若未指定則使用此值 |
+| `tiny` ⭐ | **推薦** | 通用 WASM | 30-50MB | 10-20 分 | 適合一般測試 |
+| `arcade` | 預定義街機 | 僅街機驅動 | 70-90MB | 45-60 分 | 較大構建 |
+| `mess` | 預定義家用系統 | 電腦與主機 | 60-80MB | 45-60 分 | 較大構建 |
+| `<custom>` | 用戶自訂 | 指定特定驅動 | 視情況而定 | 視情況而定 | 搭配 `SOURCES` 使用 |
 
 ### SOURCES
 **指定要包含的驅動程式檔案**（可選）
@@ -178,9 +180,9 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 
 | 遊戲 | 驅動檔案 | 命令 |
 |------|---------|------|
-| Pac-Man | `src/mame/pacman/pacman.cpp` | `pacman` 或完整路徑 |
+| Pac-Man | `src/mame/pacman/pacman.cpp` | `pacman` or 完整路徑 |
 | 太空侵略者（Taito） | `src/mame/midw8080/mw8080bw.cpp` | 完整路徑（較長） |
-| Robby Roto | `src/mame/midway/astrocde.cpp` | `robby` 或完整路徑 |
+| Robby Roto | `src/mame/midway/astrocde.cpp` | `robby` or 完整路徑 |
 | Galaxian | `src/mame/galaxian/galaxian.cpp` | 完整路徑 |
 | 大金剛 | `src/mame/nintendo/dkong.cpp` | 完整路徑 |
 | 小行星 | `src/mame/atari/asteroid.cpp` | 完整路徑 |
