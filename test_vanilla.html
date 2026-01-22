@@ -89,7 +89,7 @@
             totalDependencies: 0,
             monitorRunDependencies: function (left) {
                 this.totalDependencies = Math.max(this.totalDependencies, left);
-                Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies - left + ')' : 'All downloads complete.');
+                Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
             },
             // This function is called by the runtime to check for external data files
             // But since we are manually handling it, we use logic below. 
@@ -150,7 +150,7 @@
             };
         };
     </script>
-    <script async type="text/javascript" src="tiny.js"></script>
+    <script async type="text/javascript" src="mametiny.js"></script>
 </body>
 
 </html>
