@@ -388,11 +388,17 @@ if ($buildStatus -eq 0) {
         
         # Copy to root for testing
         Write-Host "`n[*] Copying artifacts to project root for testing..." -ForegroundColor Yellow
+        $copiedCount = 0
         Copy-Item $jsPath "$PSScriptRoot/$($name).js" -Force
+        $copiedCount++
+        
         if (Test-Path $wasmPath) {
             Copy-Item $wasmPath "$PSScriptRoot/$($name).wasm" -Force
+            $copiedCount++
+            Write-Host "   [+] Copied JS & WASM to $PSScriptRoot" -ForegroundColor Green
+        } else {
+            Write-Host "   [+] Copied JS to $PSScriptRoot" -ForegroundColor Green
         }
-        Write-Host "   [+] Copied to $PSScriptRoot/$($name).js" -ForegroundColor Green
         
     } else {
         Write-Host "[-] Could not find expected output file. Checked: $($possibleNames -join ', ')" -ForegroundColor Yellow
