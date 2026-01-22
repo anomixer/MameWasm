@@ -6,6 +6,7 @@ param(
     [string]$Subtarget = "",
     [string]$Sources = "",
     [string]$Debug = "Y",
+    [switch]$NoDebug = $false,
     [switch]$Help = $false
 )
 
@@ -154,6 +155,10 @@ if ($Sources) {
 }
 
 # Exception handling / Debug Mode
+if ($NoDebug) {
+    $Debug = "n"
+}
+
 if ($Debug -eq "Y" -and $PSBoundParameters.ContainsKey('Debug') -eq $false -and -not $Subtarget) {
     $Debug = Read-Host "`nEnable exception handling? (Y/n)"
     if (-not $Debug) { $Debug = "Y" }
@@ -161,10 +166,12 @@ if ($Debug -eq "Y" -and $PSBoundParameters.ContainsKey('Debug') -eq $false -and 
 
 if ($Debug -like "n*") {
     $DisableExceptions = "1"
-    Write-Host "  Selected: Exceptions Disabled (faster)" -ForegroundColor Green
+    $MameDebug = "0"
+    Write-Host "  Selected: Exceptions & Debugger Disabled (faster)" -ForegroundColor Green
 } else {
     $DisableExceptions = "0"
-    Write-Host "  Selected: Exceptions Enabled (slower, better debugging)" -ForegroundColor Green
+    $MameDebug = "1"
+    Write-Host "  Selected: Exceptions & Debugger Enabled (slower, better debugging)" -ForegroundColor Green
 }
 
 # ============================================================================
@@ -203,7 +210,7 @@ Push-Location "mame"
 
 try {
     # Generate layouts and version files
-    $preBuildCmd = "make generate TARGET=$Target SUBTARGET=$Subtarget IGNORE_GIT=1"
+    $preBuildCmd = "make generate TARGET=$Target SUBTARGET=$Subtarget IGNORE_GIT=1 DEBUG=$MameDebug"
     Write-Host "[*] Command: $preBuildCmd" -ForegroundColor DarkGray
     Invoke-Expression $preBuildCmd
 
@@ -233,6 +240,7 @@ try {
             "--subtarget=$Subtarget",
             "--PLATFORM=x64",
             "--with-emulator",
+            "DEBUG=$MameDebug",
             "ninja"
         )
         
@@ -328,7 +336,7 @@ try {
         $makeCmd = "emmake make asmjs TARGET=$Target SUBTARGET=$Subtarget"
         if ($Sources) { $makeCmd += " SOURCES=$Sources" }
         $makeCmd += " OVERRIDE_CC=emcc.bat OVERRIDE_CXX=em++.bat IGNORE_GIT=1"
-        $makeCmd += " -j $cores NOWERROR=1 DISABLE_EXCEPTION_CATCHING=$DisableExceptions CLANG_VERSION=22.0.0"
+        $makeCmd += " -j $cores NOWERROR=1 DISABLE_EXCEPTION_CATCHING=$DisableExceptions CLANG_VERSION=22.0.0 DEBUG=$MameDebug"
         
         # LDFLAGS for all builds to ensure stability
         $makeCmd += ' LDFLAGS="-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s MAXIMUM_MEMORY=4GB"'
