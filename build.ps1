@@ -27,7 +27,6 @@ Common Subtargets:
     mess         - Computers & consoles      ~60-80MB
     arcade       - Arcade games only         ~70-90MB
     pacmantest   - Pac-Man test build        ~4MB (fastest!)
-    pacem        - Pac-Man + Puckman         ~5-8MB
 
 Common Sources:
     pacman       - Pac-Man
@@ -127,7 +126,6 @@ if (-not $Subtarget) {
     Write-Host "  mess       - Retro computers & consoles ~60-80MB, 45-60 min" -ForegroundColor Gray
     Write-Host "  arcade     - Arcade games only ~70-90MB, 45-60 min" -ForegroundColor Gray
     Write-Host "  pacmantest - Pac-Man test build ~4MB, 2-5 min (FASTEST)" -ForegroundColor Yellow
-    Write-Host "  pacem      - Pac-Man + Puckman ~5-8MB, 3-7 min" -ForegroundColor Yellow
     $Subtarget = Read-Host "`nChoose SUBTARGET (default: tiny)"
     if (-not $Subtarget) { $Subtarget = "tiny" }
 }
@@ -190,6 +188,15 @@ if (Get-Command ninja -ErrorAction SilentlyContinue) {
 }
 
 Write-Host "[*] Step 1: Running pre-build generation (layouts, version)..." -ForegroundColor Yellow
+
+# Inject custom targets
+if (Test-Path "$PSScriptRoot/custom_targets") {
+    $targetDir = "$PWD/scripts/target/mame"
+    if (Test-Path $targetDir) {
+        Write-Host "   [*] Injecting custom target scripts..." -ForegroundColor Cyan
+        Copy-Item "$PSScriptRoot/custom_targets/*.lua" -Destination $targetDir -Force
+    }
+}
 
 $initialDir = $PSScriptRoot
 Push-Location "mame"

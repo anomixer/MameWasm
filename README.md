@@ -66,7 +66,7 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 | `tiny` | Predefined Minimal | Quick Testing | Defined in `scripts/target/mame/tiny.lua` |
 | `arcade` | Predefined Arcade | Arcade Only | Defined in `scripts/target/mame/arcade.lua` |
 | `mess` | Predefined Systems | Computers & Consoles | Defined in `scripts/target/mame/mess.lua` |
-| `<custom>` | User Defined | Specific Drivers | Use with `SOURCES`. E.g., `pacmantest`, `pacem`. |
+| `<custom>` | User Defined | Specific Drivers | Use with `SOURCES`. E.g., `pacmantest`. |
 
 *Note: The build script automatically enables memory optimizations (ALLOW_MEMORY_GROWTH) for large builds like 'mame' and 'mess'.*
 
