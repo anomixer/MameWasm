@@ -210,6 +210,9 @@ Quick reference for popular games:
 
 # Single game with NoDebug
 ./build.ps1 -Subtarget tiny -Sources robby -NoDebug
+
+# Multiple games (comma-separated)
+./build.ps1 -Subtarget tiny -Sources "pacman,robby"
 ```
 
 ### setup.ps1 Options

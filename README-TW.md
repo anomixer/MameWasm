@@ -208,6 +208,9 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 
 # 單一遊戲配合 NoDebug
 ./build.ps1 -Subtarget tiny -Sources robby -NoDebug
+
+# 多個遊戲（使用逗號分隔）
+./build.ps1 -Subtarget tiny -Sources "pacman,robby"
 ```
 
 ### setup.ps1 選項
