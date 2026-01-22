@@ -143,11 +143,18 @@
         });
 
         Module.setStatus('Downloading...');
-        window.onerror = function (event) {
+        window.onerror = function (event, source, lineno, colno, error) {
             Module.setStatus('Exception thrown, see JavaScript console');
             Module.setStatus = function (text) {
                 if (text) Module.printErr('[post-exception status] ' + text);
             };
+            
+            var msg = "window.onerror: " + event + "\n";
+            if (source) msg += "Source: " + source + ":" + lineno + ":" + colno + "\n";
+            if (error && error.stack) msg += "Stack:\n" + error.stack + "\n";
+            
+            outputElement.value += "\n[FATAL ERROR]\n" + msg + "\n";
+            outputElement.scrollTop = outputElement.scrollHeight;
         };
     </script>
     <script async type="text/javascript" src="mametiny.js"></script>
