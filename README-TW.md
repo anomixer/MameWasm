@@ -67,7 +67,6 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 | `mess` | 復古電腦和遊戲主機 | 家用系統 | 60-80MB | 45-60 分 |
 | `arcade` | 僅街機遊戲 | 街機專用 | 70-90MB | 45-60 分 |
 | `pacmantest` | Pac-Man 測試構建 | 快速測試 | 4MB | 2-5 分 |
-| `applulator` | Apple II 系統 | Apple II 模擬 | 40-50MB | 20-30 分 |
 | `pacem` | Pac-Man 變體 | 最小化 | 5-8MB | 5-10 分 |
 
 ### SOURCES
@@ -167,7 +166,6 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 | **tiny** | `tiny.js`, `tiny.wasm` | 30-50MB | 10-20 分 | **推薦**（通用 WASM） |
 | **mame** | `mame.js`, `mame.wasm` | 80-100MB | 1-2 小時 | 完整版本（建議 16GB+ RAM） |
 | **arcade** | `arcade.js`, `arcade.wasm` | 70-90MB | 45-60 分 | 僅街機遊戲 |
-| **applulator** | `applulator.js`, `applulator.wasm` | 40-50MB | 20-30 分 | Apple II 系列 |
 | **mess** | `mess.js`, `mess.wasm` | 60-80MB | 45-60 分 | 家用電腦與主機 |
 | **pacmantest** | `pacman.js`, `pacman.wasm` | ~4MB | 2-5 分 | 快速測試 |
 

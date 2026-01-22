@@ -66,7 +66,6 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 | `mame` | Full MAME (all arcade) | Complete emulator | 80-100MB | 1-2 hours | **Requires 16GB+ RAM** |
 | `mess` | Retro computers & consoles | Home systems | 60-80MB | 45-60 min | Large build |
 | `arcade` | Arcade games only | Arcade-only | 70-90MB | 45-60 min | Large build |
-| `applulator` | Apple II family | Apple II emulation | 40-50MB | 20-30 min | Specific system |
 | `pacmantest` | Pac-Man test build | Quick test | 4MB | 2-5 min | Fastest |
 | `pacem` | Pac-Man + Puckman | Minimal test | 5-8MB | 5-10 min | Fast |
 
@@ -169,7 +168,6 @@ Fast (5 min) + Small (3-5MB) + Focused (one game)
 | **tiny** | `tiny.js`, `tiny.wasm` | 30-50MB | 10-20 min | **Recommended** (General WASM) |
 | **mame** | `mame.js`, `mame.wasm` | 80-100MB | 1-2 hours | Full Build (Requires 16GB+ RAM) |
 | **arcade** | `arcade.js`, `arcade.wasm` | 70-90MB | 45-60 min | Arcade games only |
-| **applulator** | `applulator.js`, `applulator.wasm` | 40-50MB | 20-30 min | Apple II family |
 | **mess** | `mess.js`, `mess.wasm` | 60-80MB | 45-60 min | Home computers & consoles |
 | **pacmantest** | `pacman.js`, `pacman.wasm` | ~4MB | 2-5 min | Quick testing |
 
