@@ -7,6 +7,7 @@ param(
     [string]$Sources = "",
     [string]$Debug = "Y",
     [switch]$NoDebug = $false,
+    [switch]$UseMake = $false,
     [switch]$Help = $false
 )
 
@@ -189,9 +190,11 @@ if ($env:NUMBER_OF_PROCESSORS) {
 
 # Check for Ninja
 $useNinja = $false
-if (Get-Command ninja -ErrorAction SilentlyContinue) {
+if ((Get-Command ninja -ErrorAction SilentlyContinue) -and -not $UseMake) {
     $useNinja = $true
     Write-Host "[*] Ninja build system detected. Using Ninja to bypass Windows limits." -ForegroundColor Cyan
+} elseif ($UseMake) {
+    Write-Host "[*] Forced Make build system (skipping Ninja)." -ForegroundColor Yellow
 }
 
 Write-Host "[*] Step 1: Running pre-build generation (layouts, version)..." -ForegroundColor Yellow
@@ -277,8 +280,9 @@ try {
                 
                 # Patch rule link
                 $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
-                # Added -s ALLOW_MEMORY_GROWTH=1 to the command
-                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -o `$out @`$out.rsp `$all_ldflags -s ALLOW_MEMORY_GROWTH=1 `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
+                # Move flags back to CLI to avoid potential rsp parsing issues, but keep objects in rsp
+                # Changed -Os to -O1 to fix "local count too large" error and reduce memory usage during link
+                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -O1 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
                 
                 if ($content -match $linkPattern) {
                     $content = $content -replace $linkPattern, $linkReplacement
@@ -381,6 +385,36 @@ if ($buildStatus -eq 0) {
     }
     
     if ($found) {
+        # Fix JS syntax error (backtick corruption)
+        if (Test-Path $jsPath) {
+            Write-Host "[*] Patching JS file for syntax errors..." -ForegroundColor Yellow
+            $txt = [System.IO.File]::ReadAllText($jsPath)
+            
+            # Use Single Quotes to prevent variable expansion
+            $bad1 = '_`$ERRNO_CODES'
+            $bad2 = '_\\$ERRNO_CODES' # Handle double backslash case
+            $good = '_$ERRNO_CODES'
+            
+            if ($txt.Contains($bad1)) { 
+                $txt = $txt.Replace($bad1, $good)
+                Write-Host "   [+] Fixed backtick corruption in $jsPath" -ForegroundColor Green
+            }
+            
+            if ($txt.Contains($bad2)) {
+                $txt = $txt.Replace($bad2, $good)
+                Write-Host "   [+] Fixed double-slash corruption in $jsPath" -ForegroundColor Green
+            }
+            
+            # Also fix the double-replace mess if it occurs
+            $bad_mess = '_$ERRNO_CODES$ERRNO_CODES'
+            if ($txt.Contains($bad_mess)) {
+                $txt = $txt.Replace($bad_mess, $good)
+                Write-Host "   [+] Fixed duplicate symbol in $jsPath" -ForegroundColor Green
+            }
+            
+            [System.IO.File]::WriteAllText($jsPath, $txt)
+        }
+
         $jsSize = (Get-Item $jsPath).Length / 1MB
         $wasmSize = if (Test-Path $wasmPath) { (Get-Item $wasmPath).Length / 1MB } else { 0 }
         Write-Host "[+] Output JS:   $jsPath ($([math]::Round($jsSize, 2)) MB)" -ForegroundColor Green
