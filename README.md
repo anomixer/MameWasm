@@ -8,8 +8,10 @@ Automated toolset for compiling MAME WebAssembly builds on Windows.
 .
 ├── setup.ps1                    ← Environment initialization (run first)
 ├── build.ps1                    ← Main build script (interactive)
+├── verify_mame_targets.ps1      ← Build verification tool (developer)
 ├── README.md                    ← This complete guide
 ├── README-TW.md                 ← Traditional Chinese guide
+├── custom_targets/              ← User-defined target scripts
 ├── emularity/                   ← Web loader
 ├── mame/                        ← MAME source (auto-downloaded)
 ├── emsdk/                       ← Emscripten SDK (auto-downloaded)

@@ -8,8 +8,10 @@
 .
 ├── setup.ps1                    ← 環境初始化腳本（首先執行）
 ├── build.ps1                    ← 主編譯腳本（互動式介面）
+├── verify_mame_targets.ps1      ← 編譯驗證工具（開發者用）
 ├── README.md                    ← 英文完整指南
 ├── README-TW.md                 ← 本繁體中文指南
+├── custom_targets/              ← 使用者自訂目標腳本
 ├── emularity/                   ← 網頁載入器
 ├── mame/                        ← MAME 源碼（自動下載）
 ├── emsdk/                       ← Emscripten SDK（自動下載）
