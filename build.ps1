@@ -240,7 +240,6 @@ try {
             "--subtarget=$Subtarget",
             "--PLATFORM=x64",
             "--with-emulator",
-            "DEBUG=$MameDebug",
             "ninja"
         )
         
