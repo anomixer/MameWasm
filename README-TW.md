@@ -9,6 +9,9 @@
 ├── setup.ps1                    ← 環境初始化腳本（首先執行）
 ├── build.ps1                    ← 主編譯腳本（互動式介面）
 ├── verify_mame_targets.ps1      ← 編譯驗證工具（開發者用）
+├── server.py                    ← 簡單的本地網頁伺服器（測試用）
+├── test_vanilla.html            ← 基礎測試網頁
+├── test_emularity.html          ← Emularity 測試網頁
 ├── README.md                    ← 英文完整指南
 ├── README-TW.md                 ← 本繁體中文指南
 ├── custom_targets/              ← 使用者自訂目標腳本

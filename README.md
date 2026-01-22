@@ -9,6 +9,9 @@ Automated toolset for compiling MAME WebAssembly builds on Windows.
 ├── setup.ps1                    ← Environment initialization (run first)
 ├── build.ps1                    ← Main build script (interactive)
 ├── verify_mame_targets.ps1      ← Build verification tool (developer)
+├── server.py                    ← Simple local web server (for testing)
+├── test_vanilla.html            ← Minimal testing page
+├── test_emularity.html          ← Emularity testing page
 ├── README.md                    ← This complete guide
 ├── README-TW.md                 ← Traditional Chinese guide
 ├── custom_targets/              ← User-defined target scripts
