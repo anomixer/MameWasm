@@ -270,7 +270,8 @@ try {
                 
                 # Patch rule link
                 $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
-                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
+                # Added -s ALLOW_MEMORY_GROWTH=1 to the command
+                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -o `$out @`$out.rsp `$all_ldflags -s ALLOW_MEMORY_GROWTH=1 `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
                 
                 if ($content -match $linkPattern) {
                     $content = $content -replace $linkPattern, $linkReplacement
@@ -328,6 +329,10 @@ try {
         if ($Sources) { $makeCmd += " SOURCES=$Sources" }
         $makeCmd += " OVERRIDE_CC=emcc.bat OVERRIDE_CXX=em++.bat IGNORE_GIT=1"
         $makeCmd += " -j $cores NOWERROR=1 DISABLE_EXCEPTION_CATCHING=$DisableExceptions CLANG_VERSION=22.0.0"
+        
+        # LDFLAGS for all builds to ensure stability
+        $makeCmd += ' LDFLAGS="-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s MAXIMUM_MEMORY=4GB"'
+
         Invoke-Expression $makeCmd
         $buildStatus = $LASTEXITCODE
     }
