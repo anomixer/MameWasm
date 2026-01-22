@@ -1,11 +1,11 @@
 $ErrorActionPreference = "Continue"
 
-$Subtargets = @("tiny", "arcade", "applulator", "mame")
+$Subtargets = @("tiny", "arcade", "mame", "pacmantest")
 $Sources = @{
     "tiny" = "src/mame/pacman/pacman.cpp"
     "arcade" = "src/mame/pacman/pacman.cpp"
-    "applulator" = "src/mame/apple/apple2.cpp"
     "mame" = "src/mame/pacman/pacman.cpp"
+    "pacmantest" = ""
 }
 
 Write-Host "`n[*] Starting multi-target verification..." -ForegroundColor Cyan
