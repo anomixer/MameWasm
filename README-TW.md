@@ -60,14 +60,13 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 ### SUBTARGET
 **指定要編譯的驅動程式/系統**
 
-| SUBTARGET | 說明 | 用途 | 大小 | 時間 |
-|-----------|------|------|------|------|
-| `tiny` ⭐ | **推薦** 最小化構建 | 通用 WASM | 30-50MB | 10-20 分 |
-| `mame` | 完整 MAME（所有街機） | 完整模擬器 | 80-100MB | 1-2 小時 |
-| `mess` | 復古電腦和遊戲主機 | 家用系統 | 60-80MB | 45-60 分 |
-| `arcade` | 僅街機遊戲 | 街機專用 | 70-90MB | 45-60 分 |
-| `pacmantest` | Pac-Man 測試構建 | 快速測試 | 4MB | 2-5 分 |
-| `pacem` | Pac-Man 變體 | 最小化 | 5-8MB | 5-10 分 |
+| SUBTARGET | 說明 | 實際用途 | 備註 |
+|-----------|------|----------|------|
+| `mame` | **預設值** | 標準構建 | 若未指定則使用此值 |
+| `tiny` | 預定義最小化 | 快速測試 | 定義於 `scripts/target/mame/tiny.lua` |
+| `arcade` | 預定義街機 | 僅街機驅動 | 定義於 `scripts/target/mame/arcade.lua` |
+| `mess` | 預定義家用系統 | 電腦與主機 | 定義於 `scripts/target/mame/mess.lua` |
+| `<custom>` | 用戶自訂 | 指定特定驅動 | 搭配 `SOURCES` 使用。例：`pacmantest` |
 
 ### SOURCES
 **指定要包含的驅動程式檔案**（可選）

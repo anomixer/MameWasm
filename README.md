@@ -60,14 +60,13 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 ### SUBTARGET
 **Which drivers/systems to compile**
 
-| SUBTARGET | Description | Use Case | Size | Time | Note |
-|-----------|------------|----------|------|------|------|
-| `tiny` ⭐ | **RECOMMENDED** Minimal build | General WASM | 30-50MB | 10-20 min | Best for testing |
-| `mame` | Full MAME (all arcade) | Complete emulator | 80-100MB | 1-2 hours | **Requires 16GB+ RAM** |
-| `mess` | Retro computers & consoles | Home systems | 60-80MB | 45-60 min | Large build |
-| `arcade` | Arcade games only | Arcade-only | 70-90MB | 45-60 min | Large build |
-| `pacmantest` | Pac-Man test build | Quick test | 4MB | 2-5 min | Fastest |
-| `pacem` | Pac-Man + Puckman | Minimal test | 5-8MB | 5-10 min | Fast |
+| SUBTARGET | Description | Use Case | Note |
+|-----------|-------------|----------|------|
+| `mame` | **Default** | Standard Build | Default if unspecified. Large build. |
+| `tiny` | Predefined Minimal | Quick Testing | Defined in `scripts/target/mame/tiny.lua` |
+| `arcade` | Predefined Arcade | Arcade Only | Defined in `scripts/target/mame/arcade.lua` |
+| `mess` | Predefined Systems | Computers & Consoles | Defined in `scripts/target/mame/mess.lua` |
+| `<custom>` | User Defined | Specific Drivers | Use with `SOURCES`. E.g., `pacmantest`, `pacem`. |
 
 *Note: The build script automatically enables memory optimizations (ALLOW_MEMORY_GROWTH) for large builds like 'mame' and 'mess'.*
 
