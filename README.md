@@ -205,14 +205,11 @@ Quick reference for popular games:
 # Interactive (recommended for first time)
 ./build.ps1
 
-# With specific parameters
-./build.ps1 -Target mame -Subtarget tiny
+# Production build (Disabled debugger & exceptions, smaller file)
+./build.ps1 -NoDebug
 
-# Single game
-./build.ps1 -Subtarget tiny -Sources "src/mame/pacman/pacman.cpp"
-
-# Multiple games
-./build.ps1 -Subtarget tiny -Sources "pacman,robby"
+# Single game with NoDebug
+./build.ps1 -Subtarget tiny -Sources robby -NoDebug
 ```
 
 ### setup.ps1 Options

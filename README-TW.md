@@ -203,14 +203,11 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 # 互動式（首次推薦）
 ./build.ps1
 
-# 指定特定參數
-./build.ps1 -Target mame -Subtarget tiny
+# 生產環境編譯（停用除錯器與異常處理，檔案更小、速度更快）
+./build.ps1 -NoDebug
 
-# 單一遊戲
-./build.ps1 -Subtarget tiny -Sources "src/mame/pacman/pacman.cpp"
-
-# 多個遊戲
-./build.ps1 -Subtarget tiny -Sources "pacman,robby"
+# 單一遊戲配合 NoDebug
+./build.ps1 -Subtarget tiny -Sources robby -NoDebug
 ```
 
 ### setup.ps1 選項
