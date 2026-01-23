@@ -281,8 +281,8 @@ try {
                 # Patch rule link
                 $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
                 # Move flags back to CLI to avoid potential rsp parsing issues, but keep objects in rsp
-                # Changed -Os to -O1 to fix "local count too large" error and reduce memory usage during link
-                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -O1 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
+                # Changed to -Os (Size Optimization) to invoke wasm-opt and coalesce locals (Fixes "local count too large")
+                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -Os -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
                 
                 if ($content -match $linkPattern) {
                     $content = $content -replace $linkPattern, $linkReplacement
