@@ -1,13 +1,14 @@
 # MAME WASM Build Factory - Complete Guide
 
-Automated toolset for compiling MAME WebAssembly builds on Windows.
+Automated toolset for compiling MAME WebAssembly builds on Windows and Linux.
 
 ## 📋 Project Structure
 
 ```
 .
 ├── setup.ps1                    ← Environment initialization (run first)
-├── build.ps1                    ← Main build script (interactive)
+├── build.ps1                    ← Main build script (Windows)
+├── build-linux.ps1              ← Main build script (Linux)
 ├── verify_mame_targets.ps1      ← Build verification tool (developer)
 ├── server.py                    ← Simple local web server (for testing)
 ├── test_vanilla.html            ← Minimal testing page
@@ -54,6 +55,57 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
    - `python server.py` to start local server
    - Open http://localhost:8000/test_vanilla.html
    - Load ROM and play
+
+---
+
+## 🐧 Linux Support (2026-03-09)
+
+You can now build MAME WASM on Linux! Here's how:
+
+### Prerequisites
+
+```bash
+# Install PowerShell for Linux
+# See: https://docs.microsoft.com/powershell/scripting/install/install-ubuntu
+```
+
+### Quick Start (Linux)
+
+```bash
+# 1. Install PowerShell
+cd ~
+mkdir tools && cd tools
+wget https://github.com/PowerShell/PowerShell/releases/download/v7.5.1/powershell-7.5.1-linux-x64.tar.gz
+tar -xzf powershell-7.5.1-linux-x64.tar.gz
+chmod +x pwsh
+
+# 2. Run setup (same as Windows)
+cd MameWasm
+~/tools/pwsh -ExecutionPolicy Bypass -File ./setup.ps1
+
+# 3. Build for Linux
+~/tools/pwsh -ExecutionPolicy Bypass -File ./build-linux.ps1 -Subtarget tiny
+```
+
+### What happens?
+
+1. **setup.ps1** - Same as Windows, installs Emscripten SDK, MAME source, etc.
+2. **build-linux.ps1** - Linux-specific build script that:
+   - Uses Linux genie binary (`3rdparty/genie/bin/linux/genie`)
+   - Generates native Makefiles instead of Ninja
+   - Compiles with `emmake make`
+
+### Build Output
+
+After successful build, you'll find:
+- `mametiny.js` - JavaScript loader (~262KB)
+- `mametiny.wasm` - WebAssembly binary (~38MB)
+- `mametiny.html` - Test page
+
+### Troubleshooting
+
+**Error: `_IO_FILE` redefinition**
+- Fixed in `mame/src/osd/sdl/sdlprefix.h` - removed definition for newer Emscripten SDK compatibility
 
 ---
 
@@ -401,7 +453,8 @@ For more details on specific games or drivers, see the "Game Driver Paths" table
 
 ---
 
-**Last Updated**: 2026-01-22
+**Last Updated**: 2026-03-09
 **Version**: 2.1 (Verified Targets & Patches)
 
 Good luck! 🎮
+

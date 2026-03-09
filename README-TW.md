@@ -1,13 +1,14 @@
 # MAME WASM Build Factory - 繁體中文完整指南
 
-這是一個自動化的工具包，用於在 Windows 環境下編譯 MAME 的 WebAssembly (WASM) 版本。它簡化了環境設置、源碼下載和編譯參數配置的過程。
+這是一個自動化的工具包，用於在 Windows 和 Linux 環境下編譯 MAME 的 WebAssembly (WASM) 版本。它簡化了環境設置、源碼下載和編譯參數配置的過程。
 
 ## 📋 目錄結構
 
 ```
 .
 ├── setup.ps1                    ← 環境初始化腳本（首先執行）
-├── build.ps1                    ← 主編譯腳本（互動式介面）
+├── build.ps1                    ← 主編譯腳本（Windows）
+├── build-linux.ps1              ← 主編譯腳本（Linux）
 ├── verify_mame_targets.ps1      ← 編譯驗證工具（開發者用）
 ├── server.py                    ← 簡單的本地網頁伺服器（測試用）
 ├── test_vanilla.html            ← 基礎測試網頁
@@ -15,7 +16,7 @@
 ├── README.md                    ← 英文完整指南
 ├── README-TW.md                 ← 本繁體中文指南
 ├── custom_targets/              ← 使用者自訂目標腳本
-├── emularity/                   ← 網頁載入器
+├── emularity/                  ← 網頁載入器
 ├── mame/                        ← MAME 源碼（自動下載）
 ├── emsdk/                       ← Emscripten SDK（自動下載）
 ├── bin/                         ← 編譯工具（自動建立）
@@ -54,6 +55,57 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
    - `python server.py` 啟動本地伺服器
    - 打開 http://localhost:8000/test_vanilla.html
    - 載入 ROM 並遊玩
+
+---
+
+## 🐧 Linux 支援 (2026-03-09)
+
+現在你可以在 Linux 上編譯 MAME WASM 了！步驟如下：
+
+### 前置需求
+
+```bash
+# 安裝 Linux 版的 PowerShell
+# 參考：https://docs.microsoft.com/powershell/scripting/install/install-ubuntu
+```
+
+### 快速開始 (Linux)
+
+```bash
+# 1. 安裝 PowerShell
+cd ~
+mkdir tools && cd tools
+wget https://github.com/PowerShell/PowerShell/releases/download/v7.5.1/powershell-7.5.1-linux-x64.tar.gz
+tar -xzf powershell-7.5.1-linux-x64.tar.gz
+chmod +x pwsh
+
+# 2. 執行 setup（跟 Windows 一樣）
+cd MameWasm
+~/tools/pwsh -ExecutionPolicy Bypass -File ./setup.ps1
+
+# 3. 在 Linux 上編譯
+~/tools/pwsh -ExecutionPolicy Bypass -File ./build-linux.ps1 -Subtarget tiny
+```
+
+### 做了什麼？
+
+1. **setup.ps1** - 與 Windows 相同，安裝 Emscripten SDK、MAME 源碼等
+2. **build-linux.ps1** - Linux 專用的編譯腳本：
+   - 使用 Linux 版的 genie (`3rdparty/genie/bin/linux/genie`)
+   - 產生原生 Makefiles（而非 Ninja）
+   - 使用 `emmake make` 編譯
+
+### 編譯產物
+
+成功編譯後，你會找到：
+- `mametiny.js` - JavaScript 載入器（約 262KB）
+- `mametiny.wasm` - WebAssembly 二進制檔案（約 38MB）
+- `mametiny.html` - 測試網頁
+
+### 問題排解
+
+**錯誤：`_IO_FILE` 重新定義**
+- 已在 `mame/src/osd/sdl/sdlprefix.h` 中修復 - 移除定義以相容新版 Emscripten SDK
 
 ---
 
@@ -399,7 +451,8 @@ python server.py
 
 ---
 
-**最後更新**：2026-01-22
+**最後更新**：2026-03-09
 **版本**：2.1（已驗證目標與修正）
 
 祝你順利！🎮
+
