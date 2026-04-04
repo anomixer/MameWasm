@@ -223,6 +223,8 @@
                 romName = rom.name;
                 romData = rom.data;
                 document.getElementById('welcome').style.display = 'none';
+                // Set arguments BEFORE MAME starts
+                Module.arguments = [romName.replace(/\.(zip|7z|rar|chd)$/i, '').toLowerCase(), '-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms'];
             }
         }).catch(function() {});
 
@@ -233,7 +235,6 @@
                     try { FS.mkdir('/roms'); } catch (ex) {}
                     FS.writeFile('/roms/' + romName, new Uint8Array(romData));
                     log('✅ Mounted ' + romName + ' to /roms/' + romName);
-                    Module.arguments = [romName.replace(/\.(zip|7z|rar|chd)$/i, '').toLowerCase(), '-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms'];
                     Module.removeRunDependency('rom');
                 } else {
                     setTimeout(waitForRom, 100);
