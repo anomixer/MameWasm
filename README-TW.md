@@ -11,8 +11,8 @@
 ├── build-linux.ps1              ← 主編譯腳本（Linux）
 ├── verify_mame_targets.ps1      ← 編譯驗證工具（開發者用）
 ├── server.py                    ← 簡單的本地網頁伺服器（測試用）
-├── test_vanilla.html            ← 基礎測試網頁
-├── test_emularity.html          ← Emularity 測試網頁
+├── test_mamewasm.html           ← MAME WASM 載入器（ROM 檔案選擇器）
+├── test_emularity.html          ← Emularity 測試網頁（Robby Roto）
 ├── README.md                    ← 英文完整指南
 ├── README-TW.md                 ← 本繁體中文指南
 ├── custom_targets/              ← 使用者自訂目標腳本
@@ -53,8 +53,8 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 
 3. **測試**：
    - `python server.py` 啟動本地伺服器
-   - 打開 http://localhost:8000/test_vanilla.html
-   - 載入 ROM 並遊玩
+   - 打開 http://localhost:8000/test_mamewasm.html
+   - 選擇 ROM 檔案並遊玩
 
 ---
 
@@ -443,7 +443,7 @@ python server.py
 | setup.ps1 | 環境設置 | 一次 | ✅ 是（首次） |
 | build.ps1 | 編譯腳本 | 多次 | ✅ 是（每次） |
 | server.py | 本地網頁伺服器 | 測試時 | 可選 |
-| test_vanilla.html | 測試頁面（Robby） | 測試時 | 可選 |
+| test_mamewasm.html | 測試頁面（ROM 選擇器） | 測試時 | 可選 |
 | test_emularity.html | 測試頁面（Emularity） | 測試時 | 可選 |
 | README.md | 英文指南 | N/A | ✅ 是（閱讀） |
 | README-TW.md | 本繁體中文指南 | N/A | 可選 |

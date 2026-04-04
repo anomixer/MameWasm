@@ -11,8 +11,8 @@ Automated toolset for compiling MAME WebAssembly builds on Windows and Linux.
 ├── build-linux.ps1              ← Main build script (Linux)
 ├── verify_mame_targets.ps1      ← Build verification tool (developer)
 ├── server.py                    ← Simple local web server (for testing)
-├── test_vanilla.html            ← Minimal testing page
-├── test_emularity.html          ← Emularity testing page
+├── test_mamewasm.html           ← MAME WASM Loader (ROM file picker)
+├── test_emularity.html          ← Emularity testing page (Robby Roto)
 ├── README.md                    ← This complete guide
 ├── README-TW.md                 ← Traditional Chinese guide
 ├── custom_targets/              ← User-defined target scripts
@@ -53,8 +53,8 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 
 3. **Test**:
    - `python server.py` to start local server
-   - Open http://localhost:8000/test_vanilla.html
-   - Load ROM and play
+   - Open http://localhost:8000/test_mamewasm.html
+   - Pick a ROM file and play
 
 ---
 
@@ -446,7 +446,7 @@ Step 5: Deploy
 | setup.ps1 | Environment setup | Once | ✅ Yes (first) |
 | build.ps1 | Build script | Many | ✅ Yes (each time) |
 | server.py | Local web server | Testing | Optional |
-| test_vanilla.html | Test page (Robby) | Testing | Optional |
+| test_mamewasm.html | MAME WASM Loader (ROM picker) | Testing | Optional |
 | test_emularity.html | Test page (Emularity) | Testing | Optional |
 | README.md | This guide | N/A | ✅ Yes (read) |
 | README-TW.md | Chinese guide | N/A | Optional |
