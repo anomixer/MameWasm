@@ -37,17 +37,50 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y make gcc g++ git
 
+      - name: Clone MAME source
+        run: |
+          git clone --depth 1 --branch mame0287 https://github.com/mamedev/mame.git mame
+
+      - name: Copy custom targets
+        run: |
+          mkdir -p mame/scripts/target/mame
+          cp custom_targets/*.lua mame/scripts/target/mame/ 2>/dev/null || true
+          cp custom_targets/*.lst mame/src/mame/ 2>/dev/null || true
+
+      - name: Generate build files
+        run: |
+          cd mame
+          make -j$(nproc) TOOLS=1 genie
+          cd ..
+
+      - name: Patch ninja files
+        run: |
+          cd mame/build/projects/sdl/mametiny/ninja-asmjs/release
+          # Fix $(EMSCRIPTEN) path
+          sed -i 's|$(EMSCRIPTEN)|/home/runner/setup-emsdk/emsdk/upstream/emscripten|g' *.ninja
+          # Fix $(2) escaping
+          sed -i 's|\$(2)|\$\$(2)|g' *.ninja
+          # Fix ERRNO_CODES
+          sed -i "s|DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=\['[^']*ERRNO_CODES[^']*'\]|DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=['\$\$ERRNO_CODES']|g" *.ninja
+          # Add SDLMAME_EMSCRIPTEN
+          sed -i 's|-DNDEBUG -DCRLF=2 -DLSB_FIRST|-DNDEBUG -DCRLF=2 -DLSB_FIRST -DSDLMAME_EMSCRIPTEN|g' osd_sdl.ninja ocore_sdl.ninja 2>/dev/null || true
+          # Remove duplicate empty.o rules
+          awk '/^# custom build rules/{skip=1} /^# build files/{skip=1} /^# FILE:/{skip=1} /^build empty.o/{skip=1} /^  /{if(skip)next} {skip=0;print}' precompile.ninja > precompile_fixed.ninja && mv precompile_fixed.ninja precompile.ninja
+          cd ../../../../../..
+
       - name: Build MAME tiny
         run: |
+          cd mame
           emmake make -j$(nproc) TARGET=mame SUBTARGET=tiny \
-            LDFLAGS="-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s MAXIMUM_MEMORY=4GB" \
-            DISABLE_EXCEPTION_CATCHING=0 DEBUG=0 SYMBOLS=0 NO_USE_MIDI=1 NO_USE_PORTAUDIO=1 NO_USE_PULSEAUDIO=1 NO_USE_SDL2=1 NO_USE_SYSTEM_LIB_ZLIB=1 NO_USE_SYSTEM_LIB_JPEG=1 NO_USE_SYSTEM_LIB_FLAC=1 NO_USE_SYSTEM_LIB_SQLITE3=1
+            LDFLAGS="-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s MAXIMUM_MEMORY=4GB -s DISABLE_EXCEPTION_CATCHING=0" \
+            DEBUG=0 SYMBOLS=0 NO_USE_MIDI=1 NO_USE_PORTAUDIO=1 NO_USE_PULSEAUDIO=1 NO_USE_SDL2=1 NO_USE_SYSTEM_LIB_ZLIB=1 NO_USE_SYSTEM_LIB_JPEG=1 NO_USE_SYSTEM_LIB_FLAC=1 NO_USE_SYSTEM_LIB_SQLITE3=1
+          cd ..
 
       - name: Prepare deployment
         run: |
           mkdir -p deploy
-          cp build/projects/sdl/mametiny/ninja-asmjs/release/mametiny.js deploy/
-          cp build/projects/sdl/mametiny/ninja-asmjs/release/mametiny.wasm deploy/
+          cp mame/build/projects/sdl/mametiny/ninja-asmjs/release/mametiny.js deploy/
+          cp mame/build/projects/sdl/mametiny/ninja-asmjs/release/mametiny.wasm deploy/
           cp test_mamewasm.html deploy/index.html
           cp test_emularity.html deploy/emularity.html
 
