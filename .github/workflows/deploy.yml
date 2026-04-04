@@ -63,22 +63,23 @@ jobs:
 
       - name: Find build artifacts
         run: |
-          echo "=== Searching for build artifacts ==="
-          find mame/build -name "mametiny.js" -o -name "mametiny.wasm" 2>/dev/null
-          echo "=== Directory structure ==="
-          find mame/build/projects -type d 2>/dev/null | head -30
+          echo "=== All js/wasm files in mame ==="
+          find mame -name "*.js" -o -name "*.wasm" 2>/dev/null | head -30
+          echo "=== gmake-asmjs directory ==="
+          find mame/build/projects/sdl/mametiny/gmake-asmjs -type f 2>/dev/null | head -20
 
       - name: Prepare deployment
         run: |
           mkdir -p deploy
-          # Find and copy JS and WASM files
-          JS_FILE=$(find mame/build -name "mametiny.js" -type f | head -1)
-          WASM_FILE=$(find mame/build -name "mametiny.wasm" -type f | head -1)
+          # Find JS and WASM files anywhere in mame directory
+          JS_FILE=$(find mame -name "mametiny.js" -type f | head -1)
+          WASM_FILE=$(find mame -name "mametiny.wasm" -type f | head -1)
           if [ -n "$JS_FILE" ]; then
             cp "$JS_FILE" deploy/mametiny.js
             echo "Copied JS from: $JS_FILE"
           else
             echo "ERROR: mametiny.js not found!"
+            find mame -name "*.js" -type f 2>/dev/null
             exit 1
           fi
           if [ -n "$WASM_FILE" ]; then
@@ -86,6 +87,7 @@ jobs:
             echo "Copied WASM from: $WASM_FILE"
           else
             echo "ERROR: mametiny.wasm not found!"
+            find mame -name "*.wasm" -type f 2>/dev/null
             exit 1
           fi
           cp test_mamewasm.html deploy/index.html
