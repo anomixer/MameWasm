@@ -142,7 +142,7 @@
         var storedRomData = sessionStorage.getItem('mame_rom_data');
 
         var Module = {
-            noInitialRun: !storedRomData,
+            noInitialRun: false,
             preRun: [],
             postRun: [],
             print: (function () {
@@ -259,16 +259,14 @@
             driverInput.value = storedDriver;
         }
 
-        // Set MAME arguments
-        var driver = driverInput.value.trim().toLowerCase() || 'robby';
-        Module.arguments = [
-            driver,
-            '-verbose',
-            '-window',
-            '-video', 'soft',
-            '-resolution', '640x480',
-            '-rompath', '/roms'
-        ];
+        // Set MAME arguments - use MAME UI when no ROM loaded
+        var driver = driverInput.value.trim().toLowerCase() || '';
+        var args = [];
+        if (driver) {
+            args.push(driver);
+        }
+        args.push('-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms');
+        Module.arguments = args;
 
         window.onerror = function (event, source, lineno, colno, error) {
             Module.setStatus('Exception thrown, see JavaScript console');
