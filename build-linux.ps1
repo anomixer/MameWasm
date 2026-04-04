@@ -135,9 +135,16 @@ try {
         foreach ($file in $files) {
             $content = [System.IO.File]::ReadAllText($file.FullName)
             
-            # Fix $ to $$ for PowerShell (but keep as $ for ninja)
-            # Actually, we need to write the file in a way that keeps $ as literal
-            # The issue is PowerShell is processing $ in the file when reading
+            # CRITICAL: Replace $(EMSCRIPTEN) with absolute path for Linux bash
+            $content = $content.Replace('$(EMSCRIPTEN)', $emscriptenBin)
+            
+            # CRITICAL: Patch link rule to add DISABLE_EXCEPTION_CATCHING=0
+            $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
+            $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -O3 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s DISABLE_EXCEPTION_CATCHING=0 -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
+            
+            if ($content -match $linkPattern) {
+                $content = $content -replace $linkPattern, $linkReplacement
+            }
             
             # Remove SDL2_fake
             $content = $content -replace '-lSDL2_fake', ''
@@ -147,6 +154,27 @@ try {
             
             # Increase INITIAL_MEMORY
             $content = $content -replace '-s INITIAL_MEMORY=\d+MB', '-s INITIAL_MEMORY=512MB'
+            
+            # CRITICAL: Fix duplicate empty.o rule in precompile.ninja
+            if ($file.Name -eq 'precompile.ninja') {
+                $lines = $content -split "`n"
+                $ruleLines = @()
+                foreach ($line in $lines) {
+                    if ($line -match '^# custom build rules' -or $line -match '^# build files' -or $line -match '^# FILE:' -or $line -match '^build ' -or $line -match '^  flags' -or $line -match '^  includes' -or $line -match '^  defines' -or $line -match '^  all_outputfiles') {
+                        continue
+                    }
+                    $ruleLines += $line
+                }
+                $content = ($ruleLines -join "`n").TrimEnd() + "`n"
+            }
+            
+            # CRITICAL: Fix ERRNO_CODES escaping that causes JS syntax errors
+            $content = $content -replace 'DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="?\[''[^'']*ERRNO_CODES[^'']*''\]"?', 'DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=[''$$ERRNO_CODES'']'
+            
+            # CRITICAL: Add SDLMAME_EMSCRIPTEN define to osd_sdl.ninja and ocore_sdl.ninja
+            if ($file.Name -eq 'osd_sdl.ninja' -or $file.Name -eq 'ocore_sdl.ninja') {
+                $content = $content -replace '(-DNDEBUG -DCRLF=2 -DLSB_FIRST)', '$1 -DSDLMAME_EMSCRIPTEN'
+            }
             
             $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
             [System.IO.File]::WriteAllText($file.FullName, $content, $utf8NoBom)
