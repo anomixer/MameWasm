@@ -47,7 +47,13 @@ jobs:
           cp custom_targets/*.lua mame/scripts/target/mame/ 2>/dev/null || true
           cp custom_targets/*.lst mame/src/mame/ 2>/dev/null || true
 
-      - name: Build MAME tiny
+      - name: Build native tools (genie)
+        run: |
+          cd mame
+          make -j$(nproc) TOOLS=1
+          cd ..
+
+      - name: Build MAME tiny (WASM)
         run: |
           cd mame
           emmake make -j$(nproc) TARGET=mame SUBTARGET=tiny \
