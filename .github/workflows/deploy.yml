@@ -68,9 +68,14 @@ jobs:
           echo "=== gmake-asmjs directory ==="
           find mame/build/projects/sdl/mametiny/gmake-asmjs -type f 2>/dev/null | head -20
 
+      - name: Download robby.zip
+        run: |
+          mkdir -p roms
+          curl -L -o roms/robby.zip https://www.mamedev.org/roms/robby/robby.zip
+
       - name: Prepare deployment
         run: |
-          mkdir -p deploy
+          mkdir -p deploy/roms
           # Find JS and WASM files anywhere in mame directory
           JS_FILE=$(find mame -name "mametiny.js" -type f | head -1)
           WASM_FILE=$(find mame -name "mametiny.wasm" -type f | head -1)
@@ -90,6 +95,8 @@ jobs:
             find mame -name "*.wasm" -type f 2>/dev/null
             exit 1
           fi
+          # Copy ROM for emularity page
+          cp roms/robby.zip deploy/roms/robby.zip
           cp test_emularity.html deploy/index.html
           cp test_mamewasm.html deploy/play.html
 
