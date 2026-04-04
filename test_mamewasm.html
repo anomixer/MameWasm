@@ -117,12 +117,12 @@
     <div id="status">Select a ROM file and click "Load & Run"</div>
     <progress value="0" max="100" id="progress" hidden=1></progress>
 
-    <div id="welcome" style="text-align:center; color:#aaa; margin:40px 0;">
-        <p>🎮 Select a ROM file (.zip, .7z, .rar, .chd) and enter the driver name, then click "Load & Run".</p>
+    <div id="welcome" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#aaa;z-index:10;">
+        <p>Select a ROM file (.zip, .7z, .rar, .chd) and enter the driver name, then click "Load & Run".</p>
         <p>The driver name is auto-filled from the ROM filename.</p>
     </div>
 
-    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1 style="display:none;"></canvas>
+    <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1 style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"></canvas>
 
     <h3>Console Output</h3>
     <textarea id="output" readonly></textarea>
@@ -264,11 +264,10 @@
             driverInput.value = storedDriver;
         }
 
-        // If we have a stored ROM, hide welcome and show canvas
+        // If we have a stored ROM, hide welcome
         if (storedRomData) {
             var welcomeEl = document.getElementById('welcome');
             if (welcomeEl) welcomeEl.style.display = 'none';
-            document.getElementById('canvas').style.display = 'block';
         }
 
         // Set MAME arguments - use MAME UI when no ROM loaded
