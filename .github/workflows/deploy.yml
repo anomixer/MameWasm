@@ -1,0 +1,68 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'build.ps1'
+      - 'build-linux.ps1'
+      - 'custom_targets/**'
+      - 'test_*.html'
+      - 'server.py'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.35
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make gcc g++ git
+
+      - name: Build MAME tiny
+        run: |
+          emmake make -j$(nproc) TARGET=mame SUBTARGET=tiny \
+            LDFLAGS="-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s MAXIMUM_MEMORY=4GB" \
+            DISABLE_EXCEPTION_CATCHING=0 DEBUG=0 SYMBOLS=0 NO_USE_MIDI=1 NO_USE_PORTAUDIO=1 NO_USE_PULSEAUDIO=1 NO_USE_SDL2=1 NO_USE_SYSTEM_LIB_ZLIB=1 NO_USE_SYSTEM_LIB_JPEG=1 NO_USE_SYSTEM_LIB_FLAC=1 NO_USE_SYSTEM_LIB_SQLITE3=1
+
+      - name: Prepare deployment
+        run: |
+          mkdir -p deploy
+          cp build/projects/sdl/mametiny/ninja-asmjs/release/mametiny.js deploy/
+          cp build/projects/sdl/mametiny/ninja-asmjs/release/mametiny.wasm deploy/
+          cp test_mamewasm.html deploy/index.html
+          cp test_emularity.html deploy/emularity.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: deploy
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
