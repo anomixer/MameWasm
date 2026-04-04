@@ -288,7 +288,7 @@ python server.py
 ```
 
 ### 步驟 2：打開測試頁面
-- Vanilla 載入器：http://localhost:8000/test_vanilla.html（ROM 檔案選擇器 — 可從本機選擇任意 .zip）
+- Vanilla 載入器：http://localhost:8000/test_mamewasm.html（ROM 檔案選擇器 — 可從本機選擇任意 .zip）
 - Emularity 載入器：http://localhost:8000/test_emularity.html（預設測試 **Robby Roto**，含啟動畫面與進度條）
 
 *注意：Vanilla 頁面可讓你選擇本機 ROM .zip 檔案並輸入驅動程式名稱。Emularity 頁面則針對 Robby Roto 硬編碼。*
