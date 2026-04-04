@@ -174,7 +174,7 @@
 
         // Define Module BEFORE mametiny.js loads
         window.Module = {
-            noInitialRun: true,
+            noInitialRun: false,
             preRun: [],
             postRun: [],
             print: (function () {
@@ -205,26 +205,42 @@
             monitorRunDependencies: function (left) {
                 this.totalDependencies = Math.max(this.totalDependencies, left);
                 Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
-            },
-            onRuntimeInitialized: function() {
-                // MAME runtime is ready, now load ROM and start
-                loadStoredRom().then(function(rom) {
-                    if (rom.name && rom.data) {
-                        document.getElementById('welcome').style.display = 'none';
-                        // Mount ROM via preRun-style hook
-                        try { FS.mkdir('/roms'); } catch (ex) {}
-                        FS.writeFile('/roms/' + rom.name, new Uint8Array(rom.data));
-                        log('✅ Mounted ' + rom.name + ' to /roms/' + rom.name);
-                        Module.arguments = [rom.name.replace(/\.(zip|7z|rar|chd)$/i, '').toLowerCase(), '-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms'];
-                    }
-                    // Start MAME
-                    Module.run();
-                }).catch(function() {
-                    // No stored ROM, still start MAME (will show error for missing game)
-                    Module.run();
-                });
             }
         };
+
+        // Use a synchronous ROM load via IndexedDB sync API
+        // Since IndexedDB is async, we use noInitialRun + run() approach
+        // But since run() may not be exported, we use preRun with sync XHR fallback
+        var romReady = false;
+        var romName = '';
+        var romData = null;
+
+        // Try to load ROM synchronously using a sync XHR (works for local files)
+        // For stored ROMs, we need async IndexedDB
+        loadStoredRom().then(function(rom) {
+            if (rom.name && rom.data) {
+                romReady = true;
+                romName = rom.name;
+                romData = rom.data;
+                document.getElementById('welcome').style.display = 'none';
+            }
+        }).catch(function() {});
+
+        Module.preRun.push(function() {
+            Module.addRunDependency('rom');
+            function waitForRom() {
+                if (romReady) {
+                    try { FS.mkdir('/roms'); } catch (ex) {}
+                    FS.writeFile('/roms/' + romName, new Uint8Array(romData));
+                    log('✅ Mounted ' + romName + ' to /roms/' + romName);
+                    Module.arguments = [romName.replace(/\.(zip|7z|rar|chd)$/i, '').toLowerCase(), '-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms'];
+                    Module.removeRunDependency('rom');
+                } else {
+                    setTimeout(waitForRom, 100);
+                }
+            }
+            waitForRom();
+        });
 
         window.onerror = function (event, source, lineno, colno, error) {
             Module.setStatus('Exception thrown, see JavaScript console');
