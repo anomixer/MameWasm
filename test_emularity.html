@@ -4,53 +4,147 @@
 <head>
     <meta charset="utf-8">
     <title>MAME WASM - Emularity Test (Robby Roto)</title>
-    <!-- Use the proven working loader configuration -->
-    <script src="emularity/browserfs.min.js"></script>
-    <script src="emularity/loader.js"></script>
     <style>
         body {
             font-family: sans-serif;
             text-align: center;
             background: #222;
             color: #fff;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
         }
 
         #canvas {
             width: 640px;
             height: 480px;
             background: #000;
-            display: inline-block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        #splash {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+        }
+
+        #splash h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        #progress-bar {
+            width: 300px;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px auto;
+        }
+
+        #progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #4CAF50;
+            transition: width 0.3s;
+        }
+
+        #status {
+            color: #aaa;
+            margin-top: 10px;
+        }
+
+        #error {
+            color: #f44336;
+            display: none;
+            margin-top: 10px;
         }
     </style>
 </head>
 
 <body>
-    <h1>MAME WASM Emularity Test (Robby Roto)</h1>
-    <p>Note: This page is configured specifically for Robby Roto. Edit this file to test other games.</p>
-    <div id="emulator_container">
-        <canvas id="canvas"></canvas>
+    <div id="splash">
+        <h1>MAME WASM - Robby Roto</h1>
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <div id="status">Loading...</div>
+        <div id="error"></div>
     </div>
+    <canvas id="canvas" width="640" height="480"></canvas>
 
     <script>
-        // Check if Emularity is loaded
-        if (typeof Emulator === 'undefined' && typeof JSMAMELoader === 'undefined') {
-            document.body.innerHTML += "<h3 style='color:red;'>Error: Emularity loader not found. Did you run setup.ps1?</h3>";
-        } else {
-            // Configure the emulator
-            // Note: MAME WASM usually requires specific arguments and file mounts.
-            // This is a minimal test to see if the binary loads.
+        var Module = {
+            arguments: ["robby", "-verbose", "-window", "-video", "soft", "-resolution", "640x480"],
+            print: function(text) { console.log(text); },
+            printErr: function(text) { console.log(text); },
+            canvas: document.getElementById('canvas'),
+            setStatus: function(text) {
+                document.getElementById('status').textContent = text;
+                if (text.indexOf('100%') >= 0 || text.indexOf('Running') >= 0) {
+                    document.getElementById('progress-fill').style.width = '100%';
+                    setTimeout(function() {
+                        document.getElementById('splash').style.display = 'none';
+                    }, 500);
+                }
+            },
+            totalDependencies: 0,
+            monitorRunDependencies: function(left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+                var loaded = this.totalDependencies - left;
+                var pct = this.totalDependencies > 0 ? Math.round(loaded / this.totalDependencies * 100) : 0;
+                document.getElementById('progress-fill').style.width = pct + '%';
+                if (left === 0) {
+                    document.getElementById('status').textContent = 'Starting game...';
+                    document.getElementById('progress-fill').style.width = '100%';
+                }
+            },
+            preRun: [function() {
+                Module.addRunDependency('rom');
+                FS.mkdir('/roms');
+                FS.mount(MEMFS, {}, '/roms');
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', 'roms/robby.zip', true);
+                xhr.responseType = 'arraybuffer';
+                xhr.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        var pct = Math.round(e.loaded / e.total * 100);
+                        document.getElementById('progress-fill').style.width = pct + '%';
+                        document.getElementById('status').textContent = 'Downloading ROM... ' + pct + '%';
+                    }
+                };
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        FS.writeFile('/roms/robby.zip', new Uint8Array(xhr.response));
+                        console.log('Mounted robby.zip to /roms/robby.zip');
+                    }
+                    Module.removeRunDependency('rom');
+                };
+                xhr.onerror = function() {
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').textContent = 'Failed to load ROM';
+                    document.getElementById('status').textContent = 'Error';
+                    Module.removeRunDependency('rom');
+                };
+                xhr.send();
+            }],
+            onRuntimeInitialized: function() {
+                document.getElementById('status').textContent = 'Game running!';
+            }
+        };
 
-            var emulator = new Emulator(document.querySelector("#canvas"),
-                null,
-                new JSMAMELoader(JSMAMELoader.driver("robby"),
-                    JSMAMELoader.nativeResolution(640, 480),
-                    JSMAMELoader.emulatorJS("mametiny.js"),
-                    JSMAMELoader.emulatorWASM("mametiny.wasm"),
-                    JSMAMELoader.mountFile("robby.zip", JSMAMELoader.fetchFile("Game File", "roms/robby.zip")),
-                    JSMAMELoader.extraArgs(["-verbose", "-window", "-video", "soft", "-resolution", "640x480"])
-                ));
-            emulator.start({ waitAfterDownloading: true });
-        }
+        var script = document.createElement('script');
+        script.src = 'mametiny.js';
+        script.onerror = function() {
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').textContent = 'Failed to load mametiny.js';
+            document.getElementById('status').textContent = 'Error';
+        };
+        document.head.appendChild(script);
     </script>
 </body>
 

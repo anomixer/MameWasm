@@ -376,6 +376,12 @@ python server.py
 - **解決方案**：建構腳本現在在 ninja 連結規則中加入 `-s DISABLE_EXCEPTION_CATCHING=0`。
 - **狀態**：已修復。
 
+### 7. Emularity 測試頁面沒有畫面（SDL 視訊模式錯誤）
+- **錯誤**：`SDL: ERROR! Unknown video mode` — 當 SDL 初始化時 canvas 是 `display: none`，導致無法檢測有效的視訊模式。
+- **原因**：Emscripten 的 SDL 層在啟動時讀取 canvas 尺寸。隱藏的 canvas 會回傳零尺寸。
+- **解決方案**：Canvas 現在始終可見；啟動畫面覆蓋在其上方，遊戲開始後消失。
+- **狀態**：已修復於 `test_emularity.html`。
+
 ---
 
 ## ⏱️ 典型工作流程

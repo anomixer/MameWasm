@@ -291,7 +291,7 @@ python server.py
 
 ### Step 2: Open Test Page
 - Vanilla Loader: http://localhost:8000/test_vanilla.html (Pre-configured for **Robby Roto**)
-- Emularity Loader: http://localhost:8000/test_emularity.html (Pre-configured for **Robby Roto**)
+- Emularity Loader: http://localhost:8000/test_emularity.html (Pre-configured for **Robby Roto**, with splash screen & progress bar)
 
 *Note: These test pages are hardcoded for Robby Roto. To test other games, you must manually edit the driver name and ROM paths within the HTML files.*
 
@@ -378,6 +378,12 @@ python server.py
 - **Cause**: MAME uses C++ exceptions internally (e.g., `device_missing_dependencies`). Without exception catching enabled in Emscripten, these exceptions cause an abort.
 - **Solution**: The build script now includes `-s DISABLE_EXCEPTION_CATCHING=0` in the ninja link rule.
 - **Status**: Fixed in build script.
+
+### 7. Emularity test page shows no display (SDL video mode error)
+- **Error**: `SDL: ERROR! Unknown video mode` — the canvas has `display: none` when SDL initializes, preventing it from detecting a valid video mode.
+- **Cause**: Emscripten's SDL layer reads canvas dimensions at startup. A hidden canvas returns zero dimensions.
+- **Solution**: The canvas is now always visible; the splash screen overlays on top of it and hides once the game starts.
+- **Status**: Fixed in `test_emularity.html`.
 
 ---
 
