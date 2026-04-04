@@ -50,7 +50,7 @@ jobs:
       - name: Build native tools (genie)
         run: |
           cd mame
-          make -j$(nproc) TOOLS=1
+          make -j$(nproc) genie
           cd ..
 
       - name: Build MAME tiny (WASM)
