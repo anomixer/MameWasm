@@ -341,6 +341,46 @@ python server.py
 
 ---
 
+## ⚠️ Known Issues & Limitations
+
+### 1. `mame` full build fails with "multiple rules generate" error
+- **Error**: `ninja: error: dasm.ninja:130: multiple rules generate ../../../../../generated/emu/cpu/tms57002/tms57002.hxx`
+- **Cause**: Upstream MAME build system bug — `dasm.ninja` generates duplicate build rules for the same output file (tms57002.hxx). This is a MAME genie/ninja generation issue, not specific to WASM.
+- **Workaround**: Use `tiny` or `pacmantest` subtargets instead. They compile successfully and are much faster anyway.
+- **Status**: Unresolved — requires fix in upstream MAME's `scripts/genie.lua` or `scripts/build/makedep.py`.
+
+### 2. `arcade` and `mess` subtargets are not available
+- **Error**: `Definition file for TARGET=mame SUBTARGET=arcade does not exist`
+- **Cause**: This version of MAME (0.287) does not include `arcade.lua` or `mess.lua` definition files. Only `mame.lua`, `tiny.lua`, and custom targets are supported.
+- **Workaround**: Use `tiny` for arcade games (includes most popular ones) or `mame` for everything (if the build issue above is fixed).
+- **Status**: By design — these subtargets were removed or never existed in this MAME branch.
+
+### 3. Custom targets require BOTH `.lua` AND `.lst` files
+- **Error**: Linker errors with "undefined symbol: driver_xxx" when building custom targets
+- **Cause**: The `.lua` file controls which `.cpp` source files are compiled, but `drivlist.cpp` (which lists all available drivers) is controlled separately by a `.lst` file. Without a matching `.lst`, `drivlist.cpp` references ALL 50,000+ drivers, causing linker failures.
+- **Solution**: Place both `mytarget.lua` and `mytarget.lst` in `custom_targets/`. The build script copies them to the correct locations automatically.
+- **Status**: Fixed — build script now auto-copies `.lst` files.
+
+### 4. `$(2)` in ninja files causes "bad $-escape" error
+- **Error**: `ninja: dasm.ninja:44: bad $-escape (literal $ must be written as $$)`
+- **Cause**: MAME's genie generates `$(2)` (a CMD argument) in ninja files, but ninja interprets `$(...)` as variable expansion.
+- **Solution**: The build script now auto-patches `$(2)` → `$$(2)` in all ninja files.
+- **Status**: Fixed in build script.
+
+### 5. `ERRNO_CODES` causes JavaScript SyntaxError
+- **Error**: `SyntaxError: Expecting Unicode escape sequence \uXXXX` at `function _\$ERRNO_CODES`
+- **Cause**: Genie produces `\$ERRNO_CODES` in ninja link rules. When ninja processes this, the `\$` becomes an invalid escape sequence in the generated JavaScript.
+- **Solution**: The build script now auto-patches all `ERRNO_CODES` references to `$$ERRNO_CODES` (ninja's way of producing a literal `$`).
+- **Status**: Fixed in build script.
+
+### 6. Exception catching must be enabled for WASM
+- **Error**: `Aborted(Assertion failed: Exception thrown, but exception catching is not enabled)`
+- **Cause**: MAME uses C++ exceptions internally (e.g., `device_missing_dependencies`). Without exception catching enabled in Emscripten, these exceptions cause an abort.
+- **Solution**: The build script now includes `-s DISABLE_EXCEPTION_CATCHING=0` in the ninja link rule.
+- **Status**: Fixed in build script.
+
+---
+
 ## ⏱️ Typical Workflow
 
 ```
@@ -454,6 +494,6 @@ For more details on specific games or drivers, see the "Game Driver Paths" table
 ---
 
 **Last Updated**: 2026-04-04
-**Version**: 2.2 (Fixed Exception Catching & ERRNO_CODES Escaping)
+**Version**: 2.3 (Fixed Full Build System — Exception Catching, ERRNO_CODES, Custom Target .lst Filtering)
 
 Good luck! 🎮

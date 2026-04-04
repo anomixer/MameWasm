@@ -121,11 +121,12 @@ cd MameWasm
 
 | SUBTARGET | 說明 | 實際用途 | 大小 | 時間 | 備註 |
 |-----------|------|----------|------|------|------|
-| `mame` | **預設值** | 標準構建 | 80-100MB | 1-2 小時 | 若未指定則使用此值 |
-| `tiny` ⭐ | **推薦** | 通用 WASM | 30-50MB | 10-20 分 | 適合一般測試 |
-| `arcade` | 預定義街機 | 僅街機驅動 | 70-90MB | 45-60 分 | 較大構建 |
-| `mess` | 預定義家用系統 | 電腦與主機 | 60-80MB | 45-60 分 | 較大構建 |
-| `<custom>` | 用戶自訂 | 指定特定驅動 | 視情況而定 | 視情況而定 | 搭配 `SOURCES` 使用 |
+| `tiny` ⭐ | **推薦** | 通用 WASM | 30-50MB | 10-20 分 | 適合一般測試，包含 Robby Roto |
+| `pacmantest` | 僅 Pac-Man | 快速測試 | ~32MB | 2-5 分 | 最快的編譯選項 |
+| `mame` | 完整版本 | 所有遊戲 | 80-100MB | 1-2 小時 | 需要 16GB+ RAM，可能有編譯問題 |
+| `<custom>` | 用戶自訂 | 指定特定驅動 | 視情況而定 | 視情況而定 | 在 `custom_targets/` 中加入 `.lua` + `.lst` |
+
+*注意：此版本的 MAME 不提供 `arcade` 和 `mess` subtarget。*
 
 ### SOURCES
 **指定要包含的驅動程式檔案**（可選）
@@ -222,11 +223,9 @@ cd MameWasm
 
 | Subtarget | 輸出檔案 | 預估大小 | 預估時間 | 用途 |
 |-----------|---------|---------|---------|------|
-| **tiny** | `tiny.js`, `tiny.wasm` | 30-50MB | 10-20 分 | **推薦**（通用 WASM） |
+| **tiny** | `mametiny.js`, `mametiny.wasm` | 30-50MB | 10-20 分 | **推薦**（通用 WASM） |
+| **pacmantest** | `mamepacmantest.js`, `mamepacmantest.wasm` | ~32MB | 2-5 分 | 快速測試 |
 | **mame** | `mame.js`, `mame.wasm` | 80-100MB | 1-2 小時 | 完整版本（建議 16GB+ RAM） |
-| **arcade** | `arcade.js`, `arcade.wasm` | 70-90MB | 45-60 分 | 僅街機遊戲 |
-| **mess** | `mess.js`, `mess.wasm` | 60-80MB | 45-60 分 | 家用電腦與主機 |
-| **pacmantest** | `pacman.js`, `pacman.wasm` | ~4MB | 2-5 分 | 快速測試 |
 
 *注意：輸出檔名通常對應於構建時使用的 `-Subtarget` 參數名稱。*
 
@@ -336,6 +335,46 @@ python server.py
 ### 問題：Emscripten 安裝時檔案鎖定
 - setup.ps1 會自動重試
 - 如仍失敗，等待片刻後重試
+
+---
+
+## ⚠️ 已知問題與限制
+
+### 1. `mame` 完整編譯失敗：「multiple rules generate」錯誤
+- **錯誤訊息**：`ninja: error: dasm.ninja:130: multiple rules generate ../../../../../generated/emu/cpu/tms57002/tms57002.hxx`
+- **原因**：MAME 上游建構系統的 bug — `dasm.ninja` 為同一個輸出檔案（tms57002.hxx）產生了重複的建構規則。這是 MAME genie/ninja 產生的問題，非 WASM 特有。
+- **替代方案**：改用 `tiny` 或 `pacmantest` subtarget。它們編譯成功而且更快。
+- **狀態**：未解決 — 需要修復 MAME 上游的 `scripts/genie.lua` 或 `scripts/build/makedep.py`。
+
+### 2. `arcade` 和 `mess` subtarget 不可用
+- **錯誤訊息**：`Definition file for TARGET=mame SUBTARGET=arcade does not exist`
+- **原因**：此版本的 MAME（0.287）沒有包含 `arcade.lua` 或 `mess.lua` 定義檔。僅支援 `mame.lua`、`tiny.lua` 和自訂目標。
+- **替代方案**：使用 `tiny` 來玩街機遊戲（包含大多數熱門遊戲），或使用 `mame` 來取得所有遊戲（如果上述編譯問題已修復）。
+- **狀態**：設計如此 — 這些 subtarget 在此 MAME 分支中被移除或從未存在過。
+
+### 3. 自訂目標需要同時提供 `.lua` 和 `.lst` 檔案
+- **錯誤**：編譯自訂目標時出現連結器錯誤「undefined symbol: driver_xxx」
+- **原因**：`.lua` 檔案控制編譯哪些 `.cpp` 原始檔，但 `drivlist.cpp`（列出所有可用驅動程式）是由 `.lst` 檔案分別控制的。如果沒有對應的 `.lst`，`drivlist.cpp` 會參考全部 50,000+ 個驅動程式，導致連結失敗。
+- **解決方案**：將 `mytarget.lua` 和 `mytarget.lst` 都放在 `custom_targets/` 中。建構腳本會自動複製到正確位置。
+- **狀態**：已修復 — 建構腳本現在會自動複製 `.lst` 檔案。
+
+### 4. ninja 檔案中的 `$(2)` 導致「bad $-escape」錯誤
+- **錯誤**：`ninja: dasm.ninja:44: bad $-escape (literal $ must be written as $$)`
+- **原因**：MAME 的 genie 在 ninja 檔案中產生 `$(2)`（CMD 的參數），但 ninja 會將 `$(...)` 解讀為變數展開。
+- **解決方案**：建構腳本現在會自動將所有 ninja 檔案中的 `$(2)` 修補為 `$$(2)`。
+- **狀態**：已修復。
+
+### 5. `ERRNO_CODES` 導致 JavaScript SyntaxError
+- **錯誤**：`SyntaxError: Expecting Unicode escape sequence \uXXXX` 出現在 `function _\$ERRNO_CODES`
+- **原因**：Genie 在 ninja 連結規則中產生 `\$ERRNO_CODES`。當 ninja 處理時，`\$` 在產生的 JavaScript 中變成無效的跳脫序列。
+- **解決方案**：建構腳本現在會自動將所有 `ERRNO_CODES` 參考修補為 `$$ERRNO_CODES`（ninja 產生字面 `$` 的方式）。
+- **狀態**：已修復。
+
+### 6. WASM 必須啟用異常捕捉
+- **錯誤**：`Aborted(Assertion failed: Exception thrown, but exception catching is not enabled)`
+- **原因**：MAME 在內部使用 C++ 異常（例如 `device_missing_dependencies`）。如果沒有在 Emscripten 中啟用異常捕捉，這些異常會導致中止。
+- **解決方案**：建構腳本現在在 ninja 連結規則中加入 `-s DISABLE_EXCEPTION_CATCHING=0`。
+- **狀態**：已修復。
 
 ---
 
@@ -451,8 +490,8 @@ python server.py
 
 ---
 
-**最後更新**：2026-03-09
-**版本**：2.1（已驗證目標與修正）
+**最後更新**：2026-04-04
+**版本**：2.3（修復完整建構系統 — 異常捕捉、ERRNO_CODES、自訂目標 .lst 過濾）
 
 祝你順利！🎮
 
