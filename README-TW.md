@@ -1,7 +1,7 @@
 # MAME WASM Build Factory - 繁體中文完整指南
 
 > 🇺🇸 [English Version](README.md)
-> 🎮 [線上試用](https://anomixer.github.io/MameWasm/)
+> 🎮 [玩 Robby Roto](https://anomixer.github.io/MameWasm/) | [載入你的 ROM](https://anomixer.github.io/MameWasm/play.html)
 
 這是一個自動化的工具包，用於在 Windows 和 Linux 環境下編譯 MAME 的 WebAssembly (WASM) 版本。它簡化了環境設置、源碼下載和編譯參數配置的過程。
 
@@ -291,10 +291,10 @@ python server.py
 ```
 
 ### 步驟 2：打開測試頁面
-- MAME WASM 載入器：http://localhost:8000/test_mamewasm.html（ROM 檔案選擇器 — 可從本機選擇任意 .zip, .7z, .rar, .chd）
-- Emularity 載入器：http://localhost:8000/test_emularity.html（預設測試 **Robby Roto**，含啟動畫面與進度條）
-
-*注意：MAME WASM 載入器可讓你選擇本機 ROM 檔案（.zip, .7z, .rar, .chd）並輸入驅動程式名稱，驅動名稱會自動從 ROM 檔名填入。Emularity 頁面則針對 Robby Roto 硬編碼。*
+- **線上示範**：[玩 Robby Roto](https://anomixer.github.io/MameWasm/) | [載入你的 ROM](https://anomixer.github.io/MameWasm/play.html)
+- **本地編譯**：
+  - MAME WASM 載入器：http://localhost:8000/test_mamewasm.html（ROM 檔案選擇器）
+  - Emularity 載入器：http://localhost:8000/test_emularity.html（Robby Roto）
 
 ---
 

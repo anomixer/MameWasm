@@ -1,7 +1,7 @@
 # MAME WASM Build Factory - Complete Guide
 
 > 🇹🇼 [繁體中文版](README-TW.md)
-> 🎮 [Try Here](https://anomixer.github.io/MameWasm/)
+> 🎮 [Play Robby Roto](https://anomixer.github.io/MameWasm/) | [Load Your ROM](https://anomixer.github.io/MameWasm/play.html)
 
 Automated toolset for compiling MAME WebAssembly builds on Windows and Linux.
 
@@ -293,10 +293,10 @@ python server.py
 ```
 
 ### Step 2: Open Test Page
-- MAME WASM Loader: http://localhost:8000/test_mamewasm.html (ROM file picker — select any .zip, .7z, .rar, .chd locally)
-- Emularity Loader: http://localhost:8000/test_emularity.html (Pre-configured for **Robby Roto**, with splash screen & progress bar)
-
-*Note: The MAME WASM Loader lets you pick any local ROM file (.zip, .7z, .rar, .chd) and enter the driver name. The driver name is auto-filled from the ROM filename. The emularity page is hardcoded for Robby Roto.*
+- **Online Demo**: [Play Robby Roto](https://anomixer.github.io/MameWasm/) | [Load Your ROM](https://anomixer.github.io/MameWasm/play.html)
+- **Local Build**:
+  - MAME WASM Loader: http://localhost:8000/test_mamewasm.html (ROM file picker)
+  - Emularity Loader: http://localhost:8000/test_emularity.html (Robby Roto)
 
 ---
 
