@@ -201,10 +201,15 @@ Write-Host "[*] Step 1: Running pre-build generation (layouts, version)..." -For
 
 # Inject custom targets
 if (Test-Path "$PSScriptRoot/custom_targets") {
-    $targetDir = "$PWD/scripts/target/mame"
+    $targetDir = "$PSScriptRoot/mame/scripts/target/mame"
     if (Test-Path $targetDir) {
         Write-Host "   [*] Injecting custom target scripts..." -ForegroundColor Cyan
         Copy-Item "$PSScriptRoot/custom_targets/*.lua" -Destination $targetDir -Force
+    }
+    # Also copy .lst files to filter drivlist.cpp
+    $lstDir = "$PSScriptRoot/mame/src/mame"
+    if (Test-Path $lstDir) {
+        Copy-Item "$PSScriptRoot/custom_targets/*.lst" -Destination $lstDir -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -292,6 +297,10 @@ try {
                 # Ninja passes the command to cmd /c, which needs the actual path
                 # NOTE: Use .Replace() because PowerShell interprets $( as subexpression
                 $content = $content.Replace('$(EMSCRIPTEN)', 'C:\dev\MameWasm\emsdk\upstream\emscripten')
+                
+                # CRITICAL: Escape $(2) as $$(2) for ninja (used by mcs96make.py commands)
+                # Ninja interprets $(...) as variable expansion, needs $$ for literal $
+                $content = $content.Replace('$(2)', '$$(2)')
                 
                 # CRITICAL: Remove SDL2_fake which causes wasm-ld errors
                 $content = $content -replace '-lSDL2_fake', ''

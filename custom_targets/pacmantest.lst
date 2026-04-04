@@ -1,0 +1,17 @@
+@source:pacman/pacman.cpp
+pacman
+pacmanf
+pacmod
+puckman
+puckmod
+puckmana
+hangly
+hangly2
+hangly3
+newpuckx
+
+@source:pacman/pacplus.cpp
+pacplus
+
+@source:pacman/jumpshot.cpp
+jumpshot

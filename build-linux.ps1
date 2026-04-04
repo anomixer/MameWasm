@@ -138,6 +138,9 @@ try {
             # CRITICAL: Replace $(EMSCRIPTEN) with absolute path for Linux bash
             $content = $content.Replace('$(EMSCRIPTEN)', $emscriptenBin)
             
+            # CRITICAL: Escape $(2) as $$(2) for ninja (used by mcs96make.py commands)
+            $content = $content.Replace('$(2)', '$$(2)')
+            
             # CRITICAL: Patch link rule to add DISABLE_EXCEPTION_CATCHING=0
             $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
             $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -O3 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s DISABLE_EXCEPTION_CATCHING=0 -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"

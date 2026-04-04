@@ -121,11 +121,12 @@ After successful build, you'll find:
 
 | SUBTARGET | Description | Use Case | Size | Time | Note |
 |-----------|-------------|----------|------|------|------|
-| `mame` | **Default** | Standard Build | 80-100MB | 1-2 hours | Default if unspecified. |
-| `tiny` ⭐ | **RECOMMENDED** | General WASM | 30-50MB | 10-20 min | Best for testing |
-| `arcade` | Predefined Arcade | Arcade Only | 70-90MB | 45-60 min | Large build |
-| `mess` | Predefined Systems | Computers & Consoles | 60-80MB | 45-60 min | Large build |
-| `<custom>` | User Defined | Specific Drivers | Varies | Varies | Use with `SOURCES`. |
+| `tiny` ⭐ | **RECOMMENDED** | General WASM | 30-50MB | 10-20 min | Best for testing, includes Robby Roto |
+| `pacmantest` | Pac-Man Only | Quick Testing | ~32MB | 2-5 min | Fastest build |
+| `mame` | Full Build | All Games | 80-100MB | 1-2 hours | Needs 16GB+ RAM, may have build issues |
+| `<custom>` | User Defined | Specific Drivers | Varies | Varies | Add `.lua` + `.lst` to `custom_targets/` |
+
+*Note: `arcade` and `mess` subtargets are not available in this MAME version.*
 
 *Note: The build script automatically enables memory optimizations (ALLOW_MEMORY_GROWTH) for large builds like 'mame' and 'mess'.*
 
@@ -224,11 +225,9 @@ Fast (5 min) + Small (3-5MB) + Focused (one game)
 
 | Subtarget | Output Files | Est. Size | Est. Time | Use Case |
 |-----------|--------------|-----------|-----------|----------|
-| **tiny** | `tiny.js`, `tiny.wasm` | 30-50MB | 10-20 min | **Recommended** (General WASM) |
+| **tiny** | `mametiny.js`, `mametiny.wasm` | 30-50MB | 10-20 min | **Recommended** (General WASM) |
+| **pacmantest** | `mamepacmantest.js`, `mamepacmantest.wasm` | ~32MB | 2-5 min | Quick testing |
 | **mame** | `mame.js`, `mame.wasm` | 80-100MB | 1-2 hours | Full Build (Requires 16GB+ RAM) |
-| **arcade** | `arcade.js`, `arcade.wasm` | 70-90MB | 45-60 min | Arcade games only |
-| **mess** | `mess.js`, `mess.wasm` | 60-80MB | 45-60 min | Home computers & consoles |
-| **pacmantest** | `pacman.js`, `pacman.wasm` | ~4MB | 2-5 min | Quick testing |
 
 *Note: Filenames correspond to the `-Subtarget` parameter used during build.*
 
