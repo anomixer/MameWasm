@@ -47,57 +47,6 @@ jobs:
           cp custom_targets/*.lua mame/scripts/target/mame/ 2>/dev/null || true
           cp custom_targets/*.lst mame/src/mame/ 2>/dev/null || true
 
-      - name: Generate build files
-        run: |
-          cd mame
-          # On Linux, genie generates Makefiles in gnu-asmjs directory
-          make -j$(nproc) TOOLS=1 genie TARGET=mame SUBTARGET=tiny
-          cd ..
-
-      - name: Debug - list generated files
-        run: |
-          echo "=== Build directory structure ==="
-          find mame/build/projects -type d 2>/dev/null | head -30
-          echo "=== All generated files ==="
-          find mame/build/projects -type f 2>/dev/null | head -50
-
-      - name: Patch build files
-        run: |
-          # Find the actual build directory (gnu-asmjs on Linux, ninja-asmjs on Windows)
-          BUILD_DIR=$(find mame/build/projects -type d -name "mametiny" | head -1)
-          if [ -z "$BUILD_DIR" ]; then
-            echo "ERROR: No mametiny build directory found!"
-            find mame/build -type d | head -30
-            exit 1
-          fi
-          echo "Patching files in: $BUILD_DIR"
-          cd "$BUILD_DIR"
-          # Find the actual subdirectory (gnu-asmjs or ninja-asmjs)
-          SUB_DIR=$(find . -type d \( -name "gnu-asmjs" -o -name "ninja-asmjs" \) | head -1)
-          if [ -z "$SUB_DIR" ]; then
-            echo "ERROR: No gnu-asmjs or ninja-asmjs directory found!"
-            find . -type d | head -20
-            exit 1
-          fi
-          echo "Using subdirectory: $SUB_DIR"
-          cd "$SUB_DIR"
-          # Patch all generated files
-          find . -type f | while read f; do
-            # Fix $(EMSCRIPTEN) path
-            sed -i "s|\$(EMSCRIPTEN)|${EMSDK}/upstream/emscripten|g" "$f"
-            # Fix $(2) escaping (for ninja files)
-            sed -i 's|\$(2)|\$\$(2)|g' "$f"
-            # Fix ERRNO_CODES
-            sed -i "s|DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=\['[^']*ERRNO_CODES[^']*'\]|DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=['\$\$ERRNO_CODES']|g" "$f"
-            # Add SDLMAME_EMSCRIPTEN
-            sed -i 's|-DNDEBUG -DCRLF=2 -DLSB_FIRST|-DNDEBUG -DCRLF=2 -DLSB_FIRST -DSDLMAME_EMSCRIPTEN|g' "$f"
-          done
-          # Remove duplicate empty.o rules (ninja files only)
-          for f in $(find . -name "precompile.ninja"); do
-            awk '/^# custom build rules/{skip=1} /^# build files/{skip=1} /^# FILE:/{skip=1} /^build empty.o/{skip=1} /^  /{if(skip)next} {skip=0;print}' "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
-          done
-          cd ../../../../../..
-
       - name: Build MAME tiny
         run: |
           cd mame
@@ -111,7 +60,7 @@ jobs:
           echo "=== Searching for build artifacts ==="
           find mame/build -name "mametiny.js" -o -name "mametiny.wasm" 2>/dev/null
           echo "=== Directory structure ==="
-          find mame/build/projects/sdl/mametiny -maxdepth 3 -type d 2>/dev/null
+          find mame/build/projects -type d 2>/dev/null | head -30
 
       - name: Prepare deployment
         run: |
