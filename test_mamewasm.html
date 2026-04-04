@@ -173,7 +173,6 @@
         }
 
         // Define Module BEFORE mametiny.js loads
-        // Always start with noInitialRun, we'll call Module.run() manually after loading ROM
         window.Module = {
             noInitialRun: true,
             preRun: [],
@@ -206,27 +205,26 @@
             monitorRunDependencies: function (left) {
                 this.totalDependencies = Math.max(this.totalDependencies, left);
                 Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+            },
+            onRuntimeInitialized: function() {
+                // MAME runtime is ready, now load ROM and start
+                loadStoredRom().then(function(rom) {
+                    if (rom.name && rom.data) {
+                        document.getElementById('welcome').style.display = 'none';
+                        // Mount ROM via preRun-style hook
+                        try { FS.mkdir('/roms'); } catch (ex) {}
+                        FS.writeFile('/roms/' + rom.name, new Uint8Array(rom.data));
+                        log('✅ Mounted ' + rom.name + ' to /roms/' + rom.name);
+                        Module.arguments = [rom.name.replace(/\.(zip|7z|rar|chd)$/i, '').toLowerCase(), '-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms'];
+                    }
+                    // Start MAME
+                    Module.run();
+                }).catch(function() {
+                    // No stored ROM, still start MAME (will show error for missing game)
+                    Module.run();
+                });
             }
         };
-
-        // Load stored ROM and start MAME
-        loadStoredRom().then(function(rom) {
-            if (rom.name && rom.data) {
-                document.getElementById('welcome').style.display = 'none';
-                Module.preRun.push(function() {
-                    try { FS.mkdir('/roms'); } catch (ex) {}
-                    FS.writeFile('/roms/' + rom.name, new Uint8Array(rom.data));
-                    log('✅ Mounted ' + rom.name + ' to /roms/' + rom.name);
-                });
-                Module.arguments = [rom.name.replace(/\.(zip|7z|rar|chd)$/i, '').toLowerCase(), '-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms'];
-                // Start MAME now
-                if (Module.run) {
-                    Module.run();
-                }
-            }
-        }).catch(function() {
-            // No stored ROM, keep noInitialRun=true
-        });
 
         window.onerror = function (event, source, lineno, colno, error) {
             Module.setStatus('Exception thrown, see JavaScript console');
