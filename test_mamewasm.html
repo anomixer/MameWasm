@@ -232,13 +232,21 @@
         }).catch(function() {});
 
         Module.preRun.push(function() {
-            if (romReady) {
-                Module.addRunDependency('rom');
-                try { FS.mkdir('/roms'); } catch (ex) {}
-                FS.writeFile('/roms/' + romName, new Uint8Array(romData));
-                log('✅ Mounted ' + romName + ' to /roms/' + romName);
+            Module.addRunDependency('rom');
+            loadStoredRom().then(function(rom) {
+                if (rom.name && rom.data) {
+                    romReady = true;
+                    romName = rom.name;
+                    romData = rom.data;
+                    document.getElementById('welcome').style.display = 'none';
+                    try { FS.mkdir('/roms'); } catch (ex) {}
+                    FS.writeFile('/roms/' + romName, new Uint8Array(romData));
+                    log('✅ Mounted ' + romName + ' to /roms/' + romName);
+                }
                 Module.removeRunDependency('rom');
-            }
+            }).catch(function() {
+                Module.removeRunDependency('rom');
+            });
         });
 
         window.onerror = function (event, source, lineno, colno, error) {
