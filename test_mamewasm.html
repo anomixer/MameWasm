@@ -172,80 +172,52 @@
             });
         }
 
-        // Define Module BEFORE mametiny.js loads
-        window.Module = {
-            noInitialRun: false,
-            preRun: [],
-            postRun: [],
-            print: (function () {
-                return function (text) {
-                    if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-                    console.log(text);
-                    outputElement.value += text + "\n";
-                    outputElement.scrollTop = outputElement.scrollHeight;
-                };
-            })(),
-            printErr: function (text) {
-                if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-                console.error(text);
-                outputElement.value += "[ERR] " + text + "\n";
-                outputElement.scrollTop = outputElement.scrollHeight;
-            },
-            canvas: (function () {
-                var canvas = document.getElementById('canvas');
-                canvas.addEventListener("webglcontextlost", function (e) { alert('WebGL context lost. Reload the page.'); e.preventDefault(); }, false);
-                return canvas;
-            })(),
-            setStatus: function (text) {
-                if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
-                if (text === Module.setStatus.last.text) return;
-                statusElement.innerHTML = text;
-            },
-            totalDependencies: 0,
-            monitorRunDependencies: function (left) {
-                this.totalDependencies = Math.max(this.totalDependencies, left);
-                Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
-            }
-        };
+        function loadStoredRom() {
+            return openDB().then(function(db) {
+                return new Promise(function(resolve, reject) {
+                    var tx = db.transaction(STORE_NAME, 'readonly');
+                    var nameReq = tx.objectStore(STORE_NAME).get('romName');
+                    var dataReq = tx.objectStore(STORE_NAME).get('romData');
+                    nameReq.onsuccess = function() {
+                        dataReq.onsuccess = function() {
+                            resolve({ name: nameReq.result, data: dataReq.result });
+                        };
+                        dataReq.onerror = function(e) { reject(e.target.error); };
+                    };
+                    nameReq.onerror = function(e) { reject(e.target.error); };
+                });
+            });
+        }
 
-        // Use a synchronous ROM load via IndexedDB sync API
-        // Since IndexedDB is async, we use noInitialRun + run() approach
-        // But since run() may not be exported, we use preRun with sync XHR fallback
+        // Use sessionStorage for driver name (sync), IndexedDB for ROM data (async)
+        var storedDriver = sessionStorage.getItem('mame_driver');
         var romReady = false;
         var romName = '';
         var romData = null;
 
-        // Try to load ROM synchronously using a sync XHR (works for local files)
-        // For stored ROMs, we need async IndexedDB
-        loadStoredRom().then(function(rom) {
-            if (rom.name && rom.data) {
-                romReady = true;
-                romName = rom.name;
-                romData = rom.data;
-                document.getElementById('welcome').style.display = 'none';
-                // Set arguments BEFORE MAME starts
-                Module.arguments = [romName.replace(/\.(zip|7z|rar|chd)$/i, '').toLowerCase(), '-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms'];
-            }
-        }).catch(function() {});
+        // Set arguments immediately from sessionStorage (synchronous)
+        if (storedDriver) {
+            Module.arguments = [storedDriver, '-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms'];
+        }
 
+        // Load ROM data asynchronously, block MAME with run dependency
         Module.preRun.push(function() {
-            if (romReady) {
-                Module.addRunDependency('rom');
-                try { FS.mkdir('/roms'); } catch (ex) {}
-                FS.writeFile('/roms/' + romName, new Uint8Array(romData));
-                log('✅ Mounted ' + romName + ' to /roms/' + romName);
+            Module.addRunDependency('rom');
+            loadStoredRom().then(function(rom) {
+                if (rom.name && rom.data) {
+                    romReady = true;
+                    romName = rom.name;
+                    romData = rom.data;
+                    document.getElementById('welcome').style.display = 'none';
+                    try { FS.mkdir('/roms'); } catch (ex) {}
+                    FS.writeFile('/roms/' + romName, new Uint8Array(romData));
+                    log('✅ Mounted ' + romName + ' to /roms/' + romName);
+                }
                 Module.removeRunDependency('rom');
-            }
+            }).catch(function() {
+                Module.removeRunDependency('rom');
+            });
         });
-
-        window.onerror = function (event, source, lineno, colno, error) {
-            Module.setStatus('Exception thrown, see JavaScript console');
-            var msg = "window.onerror: " + event + "\n";
-            if (source) msg += "Source: " + source + ":" + lineno + ":" + colno + "\n";
-            if (error && error.stack) msg += "Stack:\n" + error.stack + "\n";
-            outputElement.value += "\n[FATAL ERROR]\n" + msg + "\n";
-            outputElement.scrollTop = outputElement.scrollHeight;
-        };
 
         function loadStoredRom() {
             return openDB().then(function(db) {
@@ -285,6 +257,8 @@
 
             var reader = new FileReader();
             reader.onload = function(e) {
+                // Store driver name in sessionStorage (sync)
+                sessionStorage.setItem('mame_driver', driver);
                 storeRom(file.name, e.target.result).then(function() {
                     window.location.reload();
                 }).catch(function(err) {
