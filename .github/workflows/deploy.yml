@@ -90,8 +90,8 @@ jobs:
             find mame -name "*.wasm" -type f 2>/dev/null
             exit 1
           fi
-          cp test_mamewasm.html deploy/index.html
-          cp test_emularity.html deploy/emularity.html
+          cp test_emularity.html deploy/index.html
+          cp test_mamewasm.html deploy/play.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
