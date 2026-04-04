@@ -198,6 +198,9 @@
         // Set arguments immediately from sessionStorage (synchronous)
         if (storedDriver) {
             Module.arguments = [storedDriver, '-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms'];
+            console.log('Using stored driver:', storedDriver);
+        } else {
+            console.log('No stored driver, using defaults');
         }
 
         // Load ROM data asynchronously, block MAME with run dependency
