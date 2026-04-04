@@ -324,10 +324,11 @@ python server.py
 ```
 
 ### Issue: Build aborts with "Aborted()" error
-- **Cause**: Usually WASM memory exhaustion or a runtime exception.
-- **Solution 1**: Ensure you are using the latest `build.ps1` which enables `ALLOW_MEMORY_GROWTH=1`.
+- **Cause**: Usually WASM memory exhaustion, missing exception catching, or a runtime exception.
+- **Solution 1**: Ensure you are using the latest `build.ps1` which enables `ALLOW_MEMORY_GROWTH=1` and `DISABLE_EXCEPTION_CATCHING=0`.
 - **Solution 2**: Rebuild with `-Debug Y` to see the actual error message in the console.
 - **Solution 3**: Check Browser Console (F12) for specific JavaScript or WASM errors.
+- **Solution 4**: If you see `SyntaxError: Expecting Unicode escape sequence \uXXXX` with `ERRNO_CODES`, the ninja build files have incorrect escaping. The build script now auto-patches this.
 
 ### Issue: Path contains Chinese characters
 ```
@@ -453,8 +454,7 @@ For more details on specific games or drivers, see the "Game Driver Paths" table
 
 ---
 
-**Last Updated**: 2026-03-09
-**Version**: 2.1 (Verified Targets & Patches)
+**Last Updated**: 2026-04-04
+**Version**: 2.2 (Fixed Exception Catching & ERRNO_CODES Escaping)
 
 Good luck! 🎮
-

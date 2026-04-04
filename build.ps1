@@ -282,12 +282,17 @@ try {
                 $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
                 # Move flags back to CLI to avoid potential rsp parsing issues, but keep objects in rsp
                 # Changed to -O3 (Aggressive Optimization) to fix "local count too large" via aggressive var elimination
-                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -O3 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
+                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -O3 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s DISABLE_EXCEPTION_CATCHING=0 -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
                 
                 if ($content -match $linkPattern) {
                     $content = $content -replace $linkPattern, $linkReplacement
                 }
 
+                # CRITICAL: Replace $(EMSCRIPTEN) with absolute path for Windows CMD
+                # Ninja passes the command to cmd /c, which needs the actual path
+                # NOTE: Use .Replace() because PowerShell interprets $( as subexpression
+                $content = $content.Replace('$(EMSCRIPTEN)', 'C:\dev\MameWasm\emsdk\upstream\emscripten')
+                
                 # CRITICAL: Remove SDL2_fake which causes wasm-ld errors
                 $content = $content -replace '-lSDL2_fake', ''
                 
@@ -297,6 +302,30 @@ try {
                 # CRITICAL: Increase INITIAL_MEMORY for full build
                 # MAME full build needs > 68MB initial memory. We set it to 512MB to be safe.
                 $content = $content -replace '-s INITIAL_MEMORY=\d+MB', '-s INITIAL_MEMORY=512MB'
+                
+                # CRITICAL: Fix duplicate empty.o rule in precompile.ninja
+                # This file conflicts with emu.ninja which also builds empty.o
+                if ($file.Name -eq 'precompile.ninja') {
+                    # Remove everything after the rules section - the build rules conflict with emu.ninja
+                    $lines = $content -split "`n"
+                    $ruleLines = @()
+                    foreach ($line in $lines) {
+                        if ($line -match '^# custom build rules' -or $line -match '^# build files' -or $line -match '^# FILE:' -or $line -match '^build ' -or $line -match '^  flags' -or $line -match '^  includes' -or $line -match '^  defines' -or $line -match '^  all_outputfiles') {
+                            continue
+                        }
+                        $ruleLines += $line
+                    }
+                    $content = ($ruleLines -join "`n").TrimEnd() + "`n"
+                }
+                
+                # CRITICAL: Fix ERRNO_CODES escaping that causes JS syntax errors
+                # Match any variation of escaped ERRNO_CODES and normalize to $$ERRNO_CODES (ninja needs $$ for literal $)
+                $content = $content -replace 'DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="?\[''[^'']*ERRNO_CODES[^'']*''\]"?', 'DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=[''$$ERRNO_CODES'']'
+                
+                # CRITICAL: Add SDLMAME_EMSCRIPTEN define to osd_sdl.ninja and ocore_sdl.ninja to skip fontconfig include and llvm.clear_cache
+                if ($file.Name -eq 'osd_sdl.ninja' -or $file.Name -eq 'ocore_sdl.ninja') {
+                    $content = $content -replace '(-DNDEBUG -DCRLF=2 -DLSB_FIRST)', '$1 -DSDLMAME_EMSCRIPTEN'
+                }
                 
                 # Write back with UTF8 no BOM
                 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
