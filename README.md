@@ -290,7 +290,7 @@ python server.py
 ```
 
 ### Step 2: Open Test Page
-- Vanilla Loader: http://localhost:8000/test_mamewasm.html (ROM file picker — select any .zip locally)
+- MAME WASM Loader: http://localhost:8000/test_mamewasm.html (ROM file picker — select any .zip locally)
 - Emularity Loader: http://localhost:8000/test_emularity.html (Pre-configured for **Robby Roto**, with splash screen & progress bar)
 
 *Note: The vanilla page lets you pick any local ROM .zip file and enter the driver name. The emularity page is hardcoded for Robby Roto.*
