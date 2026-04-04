@@ -229,18 +229,13 @@
         }).catch(function() {});
 
         Module.preRun.push(function() {
-            Module.addRunDependency('rom');
-            function waitForRom() {
-                if (romReady) {
-                    try { FS.mkdir('/roms'); } catch (ex) {}
-                    FS.writeFile('/roms/' + romName, new Uint8Array(romData));
-                    log('✅ Mounted ' + romName + ' to /roms/' + romName);
-                    Module.removeRunDependency('rom');
-                } else {
-                    setTimeout(waitForRom, 100);
-                }
+            if (romReady) {
+                Module.addRunDependency('rom');
+                try { FS.mkdir('/roms'); } catch (ex) {}
+                FS.writeFile('/roms/' + romName, new Uint8Array(romData));
+                log('✅ Mounted ' + romName + ' to /roms/' + romName);
+                Module.removeRunDependency('rom');
             }
-            waitForRom();
         });
 
         window.onerror = function (event, source, lineno, colno, error) {
