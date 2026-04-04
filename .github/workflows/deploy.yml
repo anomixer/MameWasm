@@ -53,20 +53,25 @@ jobs:
           make -j$(nproc) TOOLS=1 genie
           cd ..
 
-      - name: Patch ninja files
+      - name: Patch build files
         run: |
-          cd mame/build/projects/sdl/mametiny/ninja-asmjs/release
-          # Fix $(EMSCRIPTEN) path
-          sed -i 's|$(EMSCRIPTEN)|/home/runner/setup-emsdk/emsdk/upstream/emscripten|g' *.ninja
-          # Fix $(2) escaping
-          sed -i 's|\$(2)|\$\$(2)|g' *.ninja
-          # Fix ERRNO_CODES
-          sed -i "s|DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=\['[^']*ERRNO_CODES[^']*'\]|DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=['\$\$ERRNO_CODES']|g" *.ninja
-          # Add SDLMAME_EMSCRIPTEN
-          sed -i 's|-DNDEBUG -DCRLF=2 -DLSB_FIRST|-DNDEBUG -DCRLF=2 -DLSB_FIRST -DSDLMAME_EMSCRIPTEN|g' osd_sdl.ninja ocore_sdl.ninja 2>/dev/null || true
+          cd mame/build/projects/sdl/mametiny
+          # Find all generated files (Makefiles and ninja)
+          find . -type f | while read f; do
+            # Fix $(EMSCRIPTEN) path - use emsdk path from env
+            sed -i "s|\$(EMSCRIPTEN)|${EMSDK}/upstream/emscripten|g" "$f"
+            # Fix $(2) escaping for ninja
+            sed -i 's|\$(2)|\$\$(2)|g' "$f"
+            # Fix ERRNO_CODES
+            sed -i "s|DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=\['[^']*ERRNO_CODES[^']*'\]|DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=['\$\$ERRNO_CODES']|g" "$f"
+            # Add SDLMAME_EMSCRIPTEN
+            sed -i 's|-DNDEBUG -DCRLF=2 -DLSB_FIRST|-DNDEBUG -DCRLF=2 -DLSB_FIRST -DSDLMAME_EMSCRIPTEN|g' "$f"
+          done
           # Remove duplicate empty.o rules
-          awk '/^# custom build rules/{skip=1} /^# build files/{skip=1} /^# FILE:/{skip=1} /^build empty.o/{skip=1} /^  /{if(skip)next} {skip=0;print}' precompile.ninja > precompile_fixed.ninja && mv precompile_fixed.ninja precompile.ninja
-          cd ../../../../../..
+          for f in $(find . -name "precompile.ninja"); do
+            awk '/^# custom build rules/{skip=1} /^# build files/{skip=1} /^# FILE:/{skip=1} /^build empty.o/{skip=1} /^  /{if(skip)next} {skip=0;print}' "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
+          done
+          cd ../../../../..
 
       - name: Build MAME tiny
         run: |
