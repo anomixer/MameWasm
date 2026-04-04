@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>MAME WASM - Vanilla Test</title>
+    <title>MAME WASM - Test</title>
     <style>
         body {
             background-color: #1a1a1a;
@@ -103,11 +103,11 @@
 </head>
 
 <body>
-    <h1>MAME WASM Vanilla Test</h1>
+    <h1>MAME WASM Test</h1>
 
     <div id="controls">
         <label for="driver-input">Driver:</label>
-        <input type="text" id="driver-input" value="robby" placeholder="e.g. pacman, robby">
+        <input type="text" id="driver-input" value="" placeholder="e.g. pacman, robby">
         <label for="rom-file">ROM:</label>
         <input type="file" id="rom-file" accept=".zip,.7z,.rar,.chd">
         <button id="load-btn" onclick="loadRomAndRestart()">Load &amp; Run</button>
@@ -130,6 +130,16 @@
         var romFileInput = document.getElementById('rom-file');
         var loadBtn = document.getElementById('load-btn');
         var romStatus = document.getElementById('rom-status');
+
+        function log(msg) {
+            outputElement.value += msg + "\n";
+            outputElement.scrollTop = outputElement.scrollHeight;
+        }
+
+        // Check if we have a stored ROM from a previous load
+        var storedDriver = sessionStorage.getItem('mame_driver');
+        var storedRomName = sessionStorage.getItem('mame_rom_name');
+        var storedRomData = sessionStorage.getItem('mame_rom_data');
 
         var Module = {
             preRun: [],
@@ -165,9 +175,27 @@
             }
         };
 
-        function log(msg) {
-            outputElement.value += msg + "\n";
-            outputElement.scrollTop = outputElement.scrollHeight;
+        // If we have a stored ROM, mount it in preRun
+        if (storedRomName && storedRomData) {
+            Module.preRun.push(function () {
+                try {
+                    FS.mkdir('/roms');
+                } catch (ex) {}
+
+                // Decode base64 back to Uint8Array
+                var binaryString = atob(storedRomData);
+                var len = binaryString.length;
+                var bytes = new Uint8Array(len);
+                for (var i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                FS.writeFile('/roms/' + storedRomName, bytes);
+                log('✅ Mounted ' + storedRomName + ' to /roms/' + storedRomName);
+
+                // Clean up session storage
+                sessionStorage.removeItem('mame_rom_data');
+            });
         }
 
         function loadRomAndRestart() {
@@ -185,42 +213,25 @@
                 return;
             }
 
-            // Auto-fill driver from filename if empty
-            if (!driver) {
-                driver = file.name.replace(/\.zip$/i, '').toLowerCase();
-                driverInput.value = driver;
-            }
-
             romStatus.textContent = 'Loading ' + file.name + '...';
             romStatus.style.color = '#00bcd4';
             loadBtn.disabled = true;
 
             var reader = new FileReader();
             reader.onload = function(e) {
-                try {
-                    FS.mkdir('/roms');
-                } catch (ex) {}
+                // Store ROM data in sessionStorage (base64) and reload page
+                var bytes = new Uint8Array(e.target.result);
+                var binary = '';
+                for (var i = 0; i < bytes.length; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
 
-                FS.writeFile('/roms/' + file.name, new Uint8Array(e.target.result));
-                log('✅ Mounted ' + file.name + ' to /roms/' + file.name);
+                sessionStorage.setItem('mame_driver', driver);
+                sessionStorage.setItem('mame_rom_name', file.name);
+                sessionStorage.setItem('mame_rom_data', btoa(binary));
 
-                romStatus.textContent = 'ROM loaded, starting ' + driver + '...';
-                romStatus.style.color = '#4CAF50';
-
-                // Set MAME arguments
-                Module.arguments = [
-                    driver,
-                    '-verbose',
-                    '-window',
-                    '-video', 'soft',
-                    '-resolution', '640x480',
-                    '-rompath', '/roms'
-                ];
-
-                // Start MAME
-                Module.callMain(Module.arguments);
-
-                loadBtn.disabled = false;
+                // Reload page to start MAME with the new ROM
+                window.location.reload();
             };
             reader.onerror = function() {
                 romStatus.textContent = 'Failed to read file';
@@ -235,12 +246,28 @@
         romFileInput.addEventListener('change', function() {
             var file = this.files[0];
             if (file) {
-                var name = file.name.replace(/\.zip$/i, '').toLowerCase();
+                var name = file.name.replace(/\.(zip|7z|rar|chd)$/i, '').toLowerCase();
                 driverInput.value = name;
                 romStatus.textContent = 'Ready: ' + file.name + ' (driver: ' + name + ')';
                 romStatus.style.color = '#aaa';
             }
         });
+
+        // Restore driver name from session storage
+        if (storedDriver) {
+            driverInput.value = storedDriver;
+        }
+
+        // Set MAME arguments
+        var driver = driverInput.value.trim().toLowerCase() || 'robby';
+        Module.arguments = [
+            driver,
+            '-verbose',
+            '-window',
+            '-video', 'soft',
+            '-resolution', '640x480',
+            '-rompath', '/roms'
+        ];
 
         window.onerror = function (event, source, lineno, colno, error) {
             Module.setStatus('Exception thrown, see JavaScript console');
