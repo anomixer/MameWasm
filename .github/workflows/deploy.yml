@@ -56,11 +56,11 @@ jobs:
       - name: Patch build files
         run: |
           cd mame/build/projects/sdl/mametiny
-          # Find all generated files (Makefiles and ninja)
+          # Patch all generated files (Makefiles and ninja)
           find . -type f | while read f; do
-            # Fix $(EMSCRIPTEN) path - use emsdk path from env
+            # Fix $(EMSCRIPTEN) path
             sed -i "s|\$(EMSCRIPTEN)|${EMSDK}/upstream/emscripten|g" "$f"
-            # Fix $(2) escaping for ninja
+            # Fix $(2) escaping
             sed -i 's|\$(2)|\$\$(2)|g' "$f"
             # Fix ERRNO_CODES
             sed -i "s|DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=\['[^']*ERRNO_CODES[^']*'\]|DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=['\$\$ERRNO_CODES']|g" "$f"
@@ -81,11 +81,33 @@ jobs:
             DEBUG=0 SYMBOLS=0 NO_USE_MIDI=1 NO_USE_PORTAUDIO=1 NO_USE_PULSEAUDIO=1 NO_USE_SDL2=1 NO_USE_SYSTEM_LIB_ZLIB=1 NO_USE_SYSTEM_LIB_JPEG=1 NO_USE_SYSTEM_LIB_FLAC=1 NO_USE_SYSTEM_LIB_SQLITE3=1
           cd ..
 
+      - name: Find build artifacts
+        run: |
+          echo "=== Searching for build artifacts ==="
+          find mame/build -name "mametiny.js" -o -name "mametiny.wasm" 2>/dev/null
+          echo "=== Directory structure ==="
+          find mame/build/projects/sdl/mametiny -maxdepth 3 -type d 2>/dev/null
+
       - name: Prepare deployment
         run: |
           mkdir -p deploy
-          cp mame/build/projects/sdl/mametiny/ninja-asmjs/release/mametiny.js deploy/
-          cp mame/build/projects/sdl/mametiny/ninja-asmjs/release/mametiny.wasm deploy/
+          # Find and copy JS and WASM files
+          JS_FILE=$(find mame/build -name "mametiny.js" -type f | head -1)
+          WASM_FILE=$(find mame/build -name "mametiny.wasm" -type f | head -1)
+          if [ -n "$JS_FILE" ]; then
+            cp "$JS_FILE" deploy/mametiny.js
+            echo "Copied JS from: $JS_FILE"
+          else
+            echo "ERROR: mametiny.js not found!"
+            exit 1
+          fi
+          if [ -n "$WASM_FILE" ]; then
+            cp "$WASM_FILE" deploy/mametiny.wasm
+            echo "Copied WASM from: $WASM_FILE"
+          else
+            echo "ERROR: mametiny.wasm not found!"
+            exit 1
+          fi
           cp test_mamewasm.html deploy/index.html
           cp test_emularity.html deploy/emularity.html
 
