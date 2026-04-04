@@ -290,10 +290,10 @@ python server.py
 ```
 
 ### Step 2: Open Test Page
-- Vanilla Loader: http://localhost:8000/test_vanilla.html (Pre-configured for **Robby Roto**)
+- Vanilla Loader: http://localhost:8000/test_vanilla.html (ROM file picker — select any .zip locally)
 - Emularity Loader: http://localhost:8000/test_emularity.html (Pre-configured for **Robby Roto**, with splash screen & progress bar)
 
-*Note: These test pages are hardcoded for Robby Roto. To test other games, you must manually edit the driver name and ROM paths within the HTML files.*
+*Note: The vanilla page lets you pick any local ROM .zip file and enter the driver name. The emularity page is hardcoded for Robby Roto.*
 
 ---
 
