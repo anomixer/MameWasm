@@ -50,13 +50,28 @@ jobs:
       - name: Generate build files
         run: |
           cd mame
-          make -j$(nproc) TOOLS=1 genie
+          make -j$(nproc) TOOLS=1 genie TARGET=mame SUBTARGET=tiny
           cd ..
+
+      - name: Debug - list generated files
+        run: |
+          echo "=== Build directory structure ==="
+          find mame/build/projects -type d 2>/dev/null | head -30
+          echo "=== All generated files ==="
+          find mame/build/projects -type f 2>/dev/null | head -50
 
       - name: Patch build files
         run: |
-          cd mame/build/projects/sdl/mametiny
-          # Patch all generated files (Makefiles and ninja)
+          # Find the actual build directory
+          BUILD_DIR=$(find mame/build/projects -type d -name "mametiny" | head -1)
+          if [ -z "$BUILD_DIR" ]; then
+            echo "ERROR: No mametiny build directory found!"
+            find mame/build -type d | head -30
+            exit 1
+          fi
+          echo "Patching files in: $BUILD_DIR"
+          cd "$BUILD_DIR"
+          # Patch all generated files
           find . -type f | while read f; do
             # Fix $(EMSCRIPTEN) path
             sed -i "s|\$(EMSCRIPTEN)|${EMSDK}/upstream/emscripten|g" "$f"
