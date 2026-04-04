@@ -1,5 +1,7 @@
 # MAME WASM Build Factory - 繁體中文完整指南
 
+> 🇺🇸 [English Version](README.md)
+
 這是一個自動化的工具包，用於在 Windows 和 Linux 環境下編譯 MAME 的 WebAssembly (WASM) 版本。它簡化了環境設置、源碼下載和編譯參數配置的過程。
 
 ## 📋 目錄結構
