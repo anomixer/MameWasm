@@ -1,6 +1,7 @@
 # MAME WASM Build Factory - Complete Guide
 
 > 🇹🇼 [繁體中文版](README-TW.md)
+> 🎮 [Try Here](https://anomixer.github.io/MameWasm/)
 
 Automated toolset for compiling MAME WebAssembly builds on Windows and Linux.
 
