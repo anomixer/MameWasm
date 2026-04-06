@@ -61,54 +61,79 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 
 ---
 
-## 🐧 Linux 支援 (2026-03-09)
+## 🐧 Linux / WSL 支援 (2026-04-06)
 
-現在你可以在 Linux 上編譯 MAME WASM 了！步驟如下：
+現在你可以在 Linux 和 WSL 上編譯 MAME WASM 了！**完整 MAME 編譯在 Linux 上穩定可靠** — Windows 上的完整編譯可能因 emscripten 快取競爭條件而失敗。
 
-### 前置需求
+### 前置需求（WSL）
 
 ```bash
-# 安裝 Linux 版的 PowerShell
-# 參考：https://docs.microsoft.com/powershell/scripting/install/install-ubuntu
+# 安裝 WSL（Windows 使用者）
+wsl --install
+
+# 在 WSL 內安裝必要套件
+sudo apt update && sudo apt install -y build-essential git python3
 ```
 
-### 快速開始 (Linux)
+### 快速開始 (Linux / WSL)
 
 ```bash
-# 1. 安裝 PowerShell
-cd ~
-mkdir tools && cd tools
-wget https://github.com/PowerShell/PowerShell/releases/download/v7.5.1/powershell-7.5.1-linux-x64.tar.gz
-tar -xzf powershell-7.5.1-linux-x64.tar.gz
-chmod +x pwsh
-
-# 2. 執行 setup（跟 Windows 一樣）
+# 1. 複製 MameWasm（或從 Windows 透過 /mnt/c/ 複製）
+git clone https://github.com/anomixer/MameWasm.git
 cd MameWasm
-~/tools/pwsh -ExecutionPolicy Bypass -File ./setup.ps1
 
-# 3. 在 Linux 上編譯
-~/tools/pwsh -ExecutionPolicy Bypass -File ./build-linux.ps1 -Subtarget tiny
+# 2. 設定 Emscripten SDK
+git clone https://github.com/emscripten-core/emsdk.git emsdk-linux
+cd emsdk-linux
+./emsdk install latest
+./emsdk activate latest
+source ./emsdk_env.sh
+cd ..
+
+# 3. 複製 MAME 原始碼
+git clone --depth 1 https://github.com/mamedev/mame.git
+
+# 4. 編譯完整 MAME WASM
+cd mame
+emmake make -j$(nproc) \
+    OSD=sdl TARGETOS=asmjs GCC=asmjs GCC_VERSION=22.0.0 \
+    TARGET=mame SUBTARGET=mame PLATFORM=x64 \
+    NO_USE_MIDI=1 NO_USE_PORTAUDIO=1 NO_USE_PULSEAUDIO=1 NO_USE_ALSA=1 \
+    NO_USE_BGFX=1 NO_USE_QTDEBUG=1 NO_USE_SYSTEM_LIBS=1 \
+    SYMBOLS=0 OPTIMIZE=2 IGNORE_GIT=1
 ```
 
-### 做了什麼？
+### 完整編譯需要的原始碼修補
 
-1. **setup.ps1** - 與 Windows 相同，安裝 Emscripten SDK、MAME 源碼等
-2. **build-linux.ps1** - Linux 專用的編譯腳本：
-   - 使用 Linux 版的 genie (`3rdparty/genie/bin/linux/genie`)
-   - 產生原生 Makefiles（而非 Ninja）
-   - 使用 `emmake make` 編譯
+MAME 0.287 + Emscripten 4.0.5 需要幾個原始碼修補才能完整編譯：
+
+| 檔案 | 問題 | 解法 |
+|------|------|------|
+| `src/mame/fairlight/cmi.cpp` | `PAGE_SIZE` 巨集與 emscripten 的 `limits.h` 衝突 | 重新命名為 `CMI_PAGE_SIZE` |
+| `src/devices/bus/msx/cart/msxdos2.cpp` | 同樣的 `PAGE_SIZE` 衝突 | 重新命名為 `MSX_PAGE_SIZE` |
+| `src/devices/cpu/drcbec.cpp` | `#pragma STDC FENV_ACCESS` 不支援 wasm | 用 `#if 0 ... #endif` 包起來 |
+| `src/frontend/mame/luaengine.cpp` | sol2 的 `operator=` 模糊問題 | 將 `ret = res` 改為明確的 `std::make_pair(...)` |
+| `src/mame/apollo/apollo.cpp` | 未使用變數錯誤 | 加上 `__attribute__((unused))` |
+
+另外需要在產生的 `mame.make` 中將 `INITIAL_MEMORY` 從 `24MB` 提高到 `128MB`。
 
 ### 編譯產物
 
-成功編譯後，你會找到：
-- `mametiny.js` - JavaScript 載入器（約 262KB）
-- `mametiny.wasm` - WebAssembly 二進制檔案（約 38MB）
-- `mametiny.html` - 測試網頁
+成功編譯完整版本後，你會找到：
+- `mame.js` - JavaScript 載入器（約 289KB）
+- `mame.wasm` - WebAssembly 二進制檔案（約 210MB，42,740 個驅動程式）
+- `mame.html` - 測試網頁
 
 ### 問題排解
 
 **錯誤：`_IO_FILE` 重新定義**
 - 已在 `mame/src/osd/sdl/sdlprefix.h` 中修復 - 移除定義以相容新版 Emscripten SDK
+
+**錯誤：`initial memory too small`**
+- 在產生的 makefile 中增加 `INITIAL_MEMORY`（試試 128MB 或 256MB）
+
+**錯誤：`undefined exported symbol: "__ZN13sound_manager4muteEbh"`**
+- 這發生在編譯工具程式（jedutil、floptool 等）時。從產生的 `Makefile` 的 `PROJECTS` 列表中移除工具，或只編譯 `mame` 目標。
 
 ---
 
@@ -124,9 +149,9 @@ cd MameWasm
 
 | SUBTARGET | 說明 | 實際用途 | 大小 | 時間 | 備註 |
 |-----------|------|----------|------|------|------|
-| `tiny` ⭐ | **推薦** | 通用 WASM | 30-50MB | 10-20 分 | 適合一般測試，包含 Robby Roto |
+| `tiny` ⭐ | **推薦** | 通用 WASM | 30-50MB | 10-20 分 | 適合一般測試，Windows 上可正常編譯 |
 | `pacmantest` | 僅 Pac-Man | 快速測試 | ~32MB | 2-5 分 | 最快的編譯選項 |
-| `mame` | 完整版本 | 所有遊戲 | 80-100MB | 1-2 小時 | 需要 16GB+ RAM，可能有編譯問題 |
+| `mame` | 完整版本 | 所有遊戲 + MESS | ~210MB | 30-60 分 | **請用 WSL/Linux** — Windows 完整編譯不穩定。包含 42,740 個驅動（Apple II、Mac 等） |
 | `<custom>` | 用戶自訂 | 指定特定驅動 | 視情況而定 | 視情況而定 | 在 `custom_targets/` 中加入 `.lua` + `.lst` |
 
 *注意：此版本的 MAME 不提供 `arcade` 和 `mess` subtarget。*
@@ -343,11 +368,13 @@ python server.py
 
 ## ⚠️ 已知問題與限制
 
-### 1. `mame` 完整編譯失敗：「multiple rules generate」錯誤
-- **錯誤訊息**：`ninja: error: dasm.ninja:130: multiple rules generate ../../../../../generated/emu/cpu/tms57002/tms57002.hxx`
-- **原因**：MAME 上游建構系統的 bug — `dasm.ninja` 為同一個輸出檔案（tms57002.hxx）產生了重複的建構規則。這是 MAME genie/ninja 產生的問題，非 WASM 特有。
-- **替代方案**：改用 `tiny` 或 `pacmantest` subtarget。它們編譯成功而且更快。
-- **狀態**：未解決 — 需要修復 MAME 上游的 `scripts/genie.lua` 或 `scripts/build/makedep.py`。
+### 1. `mame` 完整編譯在 Windows 上失敗：「multiple rules generate」或「file has been modified」錯誤
+- **錯誤訊息**：`ninja: error: dasm.ninja:130: multiple rules generate ...` 或 `error: 'xxx.h' has been modified during compilation`
+- **原因**：Windows 上有兩個獨立問題：
+  1. **重複 ninja 規則**：`dasm.ninja` 和 `optional.ninja` 都產生相同的檔案（`tms57002.hxx`、`vaxdasm.o`、`xtensa_helper.o`）。編譯腳本已自動修補。
+  2. **Emscripten 快取競爭條件**：平行編譯時，多個 `emcc` 程序同時嘗試更新快取 `.stamp` 檔案，導致「檔案被修改」錯誤。編譯腳本嘗試預熱並鎖定快取，但在 Windows 上不是 100% 可靠。
+- **替代方案**：使用 WSL/Linux 進行完整編譯（見上方 Linux/WSL 章節）。`tiny` subtarget 在 Windows 上可正常編譯。
+- **狀態**：部分修復 — `tiny` 在 Windows 上可正常運作；完整編譯需要 WSL/Linux。
 
 ### 2. `arcade` 和 `mess` subtarget 不可用
 - **錯誤訊息**：`Definition file for TARGET=mame SUBTARGET=arcade does not exist`
@@ -499,8 +526,8 @@ python server.py
 
 ---
 
-**最後更新**：2026-04-04
-**版本**：2.3（修復完整建構系統 — 異常捕捉、ERRNO_CODES、自訂目標 .lst 過濾）
+**最後更新**：2026-04-06
+**版本**：2.4（WSL/Linux 完整編譯支援、動態 Python 路徑偵測、重複 Ninja 規則修復）
 
 祝你順利！🎮
 

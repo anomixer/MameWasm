@@ -114,6 +114,7 @@ Write-Host "`n[*] Collecting build parameters..." -ForegroundColor Yellow
 if (-not $Target) {
     Write-Host "`n[TARGET] Available options:" -ForegroundColor Cyan
     Write-Host "  mame       - Standard MAME (default, recommended)" -ForegroundColor Gray
+    Write-Host "  mess       - Retro computers & consoles" -ForegroundColor Gray
     Write-Host "  ldplayer   - LDPLAYER (rare)" -ForegroundColor Gray
     $Target = Read-Host "`nChoose TARGET (default: mame)"
     if (-not $Target) { $Target = "mame" }
@@ -124,9 +125,12 @@ Write-Host "  Selected: $Target" -ForegroundColor Green
 if (-not $Subtarget) {
     Write-Host "`n[SUBTARGET] Available options:" -ForegroundColor Cyan
     Write-Host "  tiny       - Minimal build (RECOMMENDED) ~30-50MB, 10-20 min" -ForegroundColor Yellow
-    Write-Host "  mame       - Full MAME (all arcade) ~80-100MB, 1-2 hours" -ForegroundColor Gray
-    Write-Host "  mess       - Retro computers & consoles ~60-80MB, 45-60 min" -ForegroundColor Gray
-    Write-Host "  arcade     - Arcade games only ~70-90MB, 45-60 min" -ForegroundColor Gray
+    if ($Target -eq "mame") {
+        Write-Host "  mame       - Full MAME (all arcade) ~80-100MB, 1-2 hours" -ForegroundColor Gray
+        Write-Host "  arcade     - Arcade games only ~70-90MB, 45-60 min" -ForegroundColor Gray
+    } elseif ($Target -eq "mess") {
+        Write-Host "  mess       - Full MESS (all computers/consoles) ~60-80MB, 45-60 min" -ForegroundColor Gray
+    }
     Write-Host "  pacmantest - Pac-Man test build ~4MB, 2-5 min (FASTEST)" -ForegroundColor Yellow
     $Subtarget = Read-Host "`nChoose SUBTARGET (default: tiny)"
     if (-not $Subtarget) { $Subtarget = "tiny" }
@@ -327,6 +331,45 @@ try {
                     $content = ($ruleLines -join "`n").TrimEnd() + "`n"
                 }
                 
+                # CRITICAL: Fix duplicate rules between dasm.ninja and optional.ninja
+                # optional.ninja duplicates some rules that also exist in dasm.ninja:
+                # - tms57002.hxx (generated header)
+                # - vaxdasm.o (VAX disassembler)
+                # - xtensa_helper.o (Xtensa CPU helper)
+                # We remove these from optional.ninja, keeping dasm.ninja's versions
+                if ($file.Name -eq 'optional.ninja') {
+                    $lines = $content -split "`n"
+                    $newLines = @()
+                    $skipBlock = $false
+                    $duplicatePatterns = @(
+                        'tms57002\.hxx:',
+                        'vaxdasm\.o:',
+                        'xtensa_helper\.o:'
+                    )
+                    foreach ($line in $lines) {
+                        $isDuplicate = $false
+                        foreach ($pattern in $duplicatePatterns) {
+                            if ($line -match "^build .+$pattern") {
+                                $isDuplicate = $true
+                                break
+                            }
+                        }
+                        if ($isDuplicate) {
+                            $skipBlock = $true
+                            continue
+                        } elseif ($skipBlock) {
+                            if ($line -match '^build ' -or $line -match '^# FILE:') {
+                                $skipBlock = $false
+                                $newLines += $line
+                            }
+                            continue
+                        } else {
+                            $newLines += $line
+                        }
+                    }
+                    $content = ($newLines -join "`n").TrimEnd() + "`n"
+                }
+                
                 # CRITICAL: Fix ERRNO_CODES escaping that causes JS syntax errors
                 # Match any variation of escaped ERRNO_CODES and normalize to $$ERRNO_CODES (ninja needs $$ for literal $)
                 $content = $content -replace 'DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="?\[''[^'']*ERRNO_CODES[^'']*''\]"?', 'DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=[''$$ERRNO_CODES'']'
@@ -334,6 +377,16 @@ try {
                 # CRITICAL: Add SDLMAME_EMSCRIPTEN define to osd_sdl.ninja and ocore_sdl.ninja to skip fontconfig include and llvm.clear_cache
                 if ($file.Name -eq 'osd_sdl.ninja' -or $file.Name -eq 'ocore_sdl.ninja') {
                     $content = $content -replace '(-DNDEBUG -DCRLF=2 -DLSB_FIRST)', '$1 -DSDLMAME_EMSCRIPTEN'
+                }
+                
+                # CRITICAL: Replace python3 with emsdk python.exe for Windows compatibility
+                # Windows Store python3.exe is a stub that doesn't work with MAME's python scripts
+                # Dynamically find the emsdk python path from the emsdk directory
+                $mameRoot = (Get-Item $PSScriptRoot).Parent.FullName
+                $emsdkPythonDir = Get-ChildItem "$mameRoot\emsdk\python" -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
+                if ($emsdkPythonDir -and (Test-Path "$($emsdkPythonDir.FullName)\python.exe")) {
+                    $emsdkPython = "$($emsdkPythonDir.FullName)\python.exe"
+                    $content = $content -replace 'python3 ', "$emsdkPython "
                 }
                 
                 # Write back with UTF8 no BOM
@@ -351,6 +404,7 @@ try {
     if ($useNinja) {
         Write-Host "`n[*] Starting Ninja build..." -ForegroundColor Yellow
         
+        $mameRoot = (Get-Item $PSScriptRoot).Parent.FullName
         $solName = if ($Target -eq $Subtarget) { $Target } else { "$Target$Subtarget" }
         $expectedNinjaDir = "build/projects/sdl/$solName/ninja-asmjs/release"
         
@@ -364,6 +418,36 @@ try {
         
         if ($ninjaDir) {
             Write-Host "   [+] build.ninja found at: $ninjaDir" -ForegroundColor Green
+            
+            # CRITICAL: Pre-warm emscripten cache to prevent
+            # "file has been modified during compilation" errors during parallel builds
+            # Note: On Windows, full MAME builds may still fail due to emscripten cache race conditions.
+            # For full builds, use WSL/Linux instead (see README.md for instructions).
+            $emccPath = "$mameRoot\emsdk\upstream\emscripten\emcc.bat"
+            if (Test-Path $emccPath) {
+                Write-Host "[*] Pre-warming emscripten cache (this may take 2-3 minutes)..." -ForegroundColor Yellow
+                $tempFile = [System.IO.Path]::GetTempFileName() + ".cpp"
+                @"
+#include <list>
+#include <algorithm>
+#include <string>
+#include <vector>
+int main() { return 0; }
+"@ | Set-Content $tempFile
+                & $emccPath $tempFile -o "$tempFile.js" -std=c++20 -s USE_SDL=2 -s USE_SDL_TTF=2 -s USE_FREETYPE=2 -s EXCEPTION_CATCHING_ALLOWED="['test']" 2>&1 | Out-Null
+                Remove-Item $tempFile, "$tempFile.js", "$tempFile.wasm" -ErrorAction SilentlyContinue
+                $tempFile2 = [System.IO.Path]::GetTempFileName() + ".cpp"
+                "int main() { return 0; }" | Set-Content $tempFile2
+                & $emccPath $tempFile2 -o "$tempFile2.js" -std=c++20 2>&1 | Out-Null
+                Remove-Item $tempFile2, "$tempFile2.js", "$tempFile2.wasm" -ErrorAction SilentlyContinue
+                
+                # Make the emscripten cache read-only to prevent parallel build race conditions
+                $cacheDir = "$mameRoot\emsdk\upstream\emscripten\cache"
+                Write-Host "[*] Locking emscripten cache (read-only)..." -ForegroundColor Yellow
+                Get-ChildItem $cacheDir -Recurse -File | ForEach-Object { $_.IsReadOnly = $true }
+                Write-Host "[+] Emscripten cache warmed and locked successfully." -ForegroundColor Green
+            }
+            
             $ninjaCmd = "emmake ninja -j $cores -C `"$ninjaDir`""
             Write-Host "[*] Ninja Command: $ninjaCmd" -ForegroundColor DarkGray
             Invoke-Expression $ninjaCmd

@@ -61,54 +61,79 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 
 ---
 
-## 🐧 Linux Support (2026-03-09)
+## 🐧 Linux / WSL Support (2026-04-06)
 
-You can now build MAME WASM on Linux! Here's how:
+You can now build MAME WASM on Linux and WSL! **Full MAME builds work reliably on Linux** — Windows full builds may still fail due to emscripten cache race conditions during parallel compilation.
 
-### Prerequisites
+### Prerequisites (WSL)
 
 ```bash
-# Install PowerShell for Linux
-# See: https://docs.microsoft.com/powershell/scripting/install/install-ubuntu
+# Install WSL (Windows users)
+wsl --install
+
+# Inside WSL, install prerequisites
+sudo apt update && sudo apt install -y build-essential git python3
 ```
 
-### Quick Start (Linux)
+### Quick Start (Linux / WSL)
 
 ```bash
-# 1. Install PowerShell
-cd ~
-mkdir tools && cd tools
-wget https://github.com/PowerShell/PowerShell/releases/download/v7.5.1/powershell-7.5.1-linux-x64.tar.gz
-tar -xzf powershell-7.5.1-linux-x64.tar.gz
-chmod +x pwsh
-
-# 2. Run setup (same as Windows)
+# 1. Clone MameWasm (or copy from Windows via /mnt/c/)
+git clone https://github.com/anomixer/MameWasm.git
 cd MameWasm
-~/tools/pwsh -ExecutionPolicy Bypass -File ./setup.ps1
 
-# 3. Build for Linux
-~/tools/pwsh -ExecutionPolicy Bypass -File ./build-linux.ps1 -Subtarget tiny
+# 2. Setup Emscripten SDK
+git clone https://github.com/emscripten-core/emsdk.git emsdk-linux
+cd emsdk-linux
+./emsdk install latest
+./emsdk activate latest
+source ./emsdk_env.sh
+cd ..
+
+# 3. Clone MAME source
+git clone --depth 1 https://github.com/mamedev/mame.git
+
+# 4. Build full MAME WASM
+cd mame
+emmake make -j$(nproc) \
+    OSD=sdl TARGETOS=asmjs GCC=asmjs GCC_VERSION=22.0.0 \
+    TARGET=mame SUBTARGET=mame PLATFORM=x64 \
+    NO_USE_MIDI=1 NO_USE_PORTAUDIO=1 NO_USE_PULSEAUDIO=1 NO_USE_ALSA=1 \
+    NO_USE_BGFX=1 NO_USE_QTDEBUG=1 NO_USE_SYSTEM_LIBS=1 \
+    SYMBOLS=0 OPTIMIZE=2 IGNORE_GIT=1
 ```
 
-### What happens?
+### Known Source Patches for Full Build
 
-1. **setup.ps1** - Same as Windows, installs Emscripten SDK, MAME source, etc.
-2. **build-linux.ps1** - Linux-specific build script that:
-   - Uses Linux genie binary (`3rdparty/genie/bin/linux/genie`)
-   - Generates native Makefiles instead of Ninja
-   - Compiles with `emmake make`
+MAME 0.287 + Emscripten 4.0.5 requires a few source patches for full builds:
+
+| File | Issue | Fix |
+|------|-------|-----|
+| `src/mame/fairlight/cmi.cpp` | `PAGE_SIZE` macro conflicts with emscripten's `limits.h` | Rename `PAGE_SIZE` → `CMI_PAGE_SIZE` |
+| `src/devices/bus/msx/cart/msxdos2.cpp` | Same `PAGE_SIZE` conflict | Rename `PAGE_SIZE` → `MSX_PAGE_SIZE` |
+| `src/devices/cpu/drcbec.cpp` | `#pragma STDC FENV_ACCESS` not supported on wasm | Wrap in `#if 0 ... #endif` |
+| `src/frontend/mame/luaengine.cpp` | Ambiguous `operator=` with sol2 | Change `ret = res` to explicit `std::make_pair(...)` |
+| `src/mame/apollo/apollo.cpp` | Unused variable errors | Add `__attribute__((unused))` |
+
+Also increase `INITIAL_MEMORY` from `24MB` to `128MB` in the generated `mame.make` linker flags.
 
 ### Build Output
 
-After successful build, you'll find:
-- `mametiny.js` - JavaScript loader (~262KB)
-- `mametiny.wasm` - WebAssembly binary (~38MB)
-- `mametiny.html` - Test page
+After successful full build, you'll find:
+- `mame.js` - JavaScript loader (~289KB)
+- `mame.wasm` - WebAssembly binary (~210MB, 42,740 drivers)
+- `mame.html` - Test page
 
 ### Troubleshooting
 
 **Error: `_IO_FILE` redefinition**
 - Fixed in `mame/src/osd/sdl/sdlprefix.h` - removed definition for newer Emscripten SDK compatibility
+
+**Error: `initial memory too small`**
+- Increase `INITIAL_MEMORY` in the generated makefile (try 128MB or 256MB)
+
+**Error: `undefined exported symbol: "__ZN13sound_manager4muteEbh"`**
+- This happens when building tools (jedutil, floptool, etc.). Skip tools by removing them from the `PROJECTS` list in the generated `Makefile`, or build only the `mame` target.
 
 ---
 
@@ -124,9 +149,9 @@ After successful build, you'll find:
 
 | SUBTARGET | Description | Use Case | Size | Time | Note |
 |-----------|-------------|----------|------|------|------|
-| `tiny` ⭐ | **RECOMMENDED** | General WASM | 30-50MB | 10-20 min | Best for testing, includes Robby Roto |
+| `tiny` ⭐ | **RECOMMENDED** | General WASM | 30-50MB | 10-20 min | Best for testing, works on Windows |
 | `pacmantest` | Pac-Man Only | Quick Testing | ~32MB | 2-5 min | Fastest build |
-| `mame` | Full Build | All Games | 80-100MB | 1-2 hours | Needs 16GB+ RAM, may have build issues |
+| `mame` | Full Build | All Games + MESS | ~210MB | 30-60 min | **Use WSL/Linux** — Windows full builds unreliable. 42,740 drivers incl. Apple II, Mac, etc. |
 | `<custom>` | User Defined | Specific Drivers | Varies | Varies | Add `.lua` + `.lst` to `custom_targets/` |
 
 *Note: `arcade` and `mess` subtargets are not available in this MAME version.*
@@ -346,11 +371,13 @@ python server.py
 
 ## ⚠️ Known Issues & Limitations
 
-### 1. `mame` full build fails with "multiple rules generate" error
-- **Error**: `ninja: error: dasm.ninja:130: multiple rules generate ../../../../../generated/emu/cpu/tms57002/tms57002.hxx`
-- **Cause**: Upstream MAME build system bug — `dasm.ninja` generates duplicate build rules for the same output file (tms57002.hxx). This is a MAME genie/ninja generation issue, not specific to WASM.
-- **Workaround**: Use `tiny` or `pacmantest` subtargets instead. They compile successfully and are much faster anyway.
-- **Status**: Unresolved — requires fix in upstream MAME's `scripts/genie.lua` or `scripts/build/makedep.py`.
+### 1. `mame` full build fails on Windows with "multiple rules generate" or "file has been modified" errors
+- **Error**: `ninja: error: dasm.ninja:130: multiple rules generate ...` or `error: 'xxx.h' has been modified during compilation`
+- **Cause**: Two separate issues on Windows:
+  1. **Duplicate ninja rules**: `dasm.ninja` and `optional.ninja` both generate the same files (`tms57002.hxx`, `vaxdasm.o`, `xtensa_helper.o`). The build script auto-patches this.
+  2. **Emscripten cache race condition**: During parallel builds, multiple `emcc` processes simultaneously try to update cache `.stamp` files, causing "file modified" errors. The build script attempts to pre-warm and lock the cache, but this is not 100% reliable on Windows.
+- **Workaround**: Use WSL/Linux for full builds (see Linux/WSL section above). The `tiny` subtarget works fine on Windows.
+- **Status**: Partially fixed — `tiny` builds work on Windows; full builds require WSL/Linux.
 
 ### 2. `arcade` and `mess` subtargets are not available
 - **Error**: `Definition file for TARGET=mame SUBTARGET=arcade does not exist`
@@ -502,7 +529,7 @@ For more details on specific games or drivers, see the "Game Driver Paths" table
 
 ---
 
-**Last Updated**: 2026-04-04
-**Version**: 2.3 (Fixed Full Build System — Exception Catching, ERRNO_CODES, Custom Target .lst Filtering)
+**Last Updated**: 2026-04-06
+**Version**: 2.4 (WSL/Linux Full Build Support, Dynamic Python Detection, Duplicate Ninja Rules Fix)
 
 Good luck! 🎮
