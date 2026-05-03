@@ -31,6 +31,12 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Generated Analysis Results
+rom_mapping_results*.txt
+*.log
+build_log.txt
+current_build.log
+
 # Output
 *.js
 *.wasm

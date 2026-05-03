@@ -25,6 +25,7 @@ Usage:
 
 Common Subtargets:
     tiny         - Minimal build (RECOMMENDED) ~30-50MB
+    ample        - AmpleWeb optimized build (Best for Apple/Mac/8-bit) ~45MB
     mame         - Full MAME (all arcade)    ~80-100MB
     mess         - Computers & consoles      ~60-80MB
     arcade       - Arcade games only         ~70-90MB
@@ -125,6 +126,7 @@ Write-Host "  Selected: $Target" -ForegroundColor Green
 if (-not $Subtarget) {
     Write-Host "`n[SUBTARGET] Available options:" -ForegroundColor Cyan
     Write-Host "  tiny       - Minimal build (RECOMMENDED) ~30-50MB, 10-20 min" -ForegroundColor Yellow
+    Write-Host "  ample      - AmpleWeb optimized build (Best for Apple/Mac/8-bit) ~45MB" -ForegroundColor Cyan
     if ($Target -eq "mame") {
         Write-Host "  mame       - Full MAME (all arcade) ~80-100MB, 1-2 hours" -ForegroundColor Gray
         Write-Host "  arcade     - Arcade games only ~70-90MB, 45-60 min" -ForegroundColor Gray
@@ -138,7 +140,7 @@ if (-not $Subtarget) {
 Write-Host "  Selected: $Subtarget" -ForegroundColor Green
 
 # SOURCES
-if ($Sources -eq "" -and $PSBoundParameters.ContainsKey('Sources') -eq $false) {
+if ($Sources -eq "" -and $PSBoundParameters.ContainsKey('Sources') -eq $false -and -not $Subtarget) {
     Write-Host "`n[SOURCES] Available options:" -ForegroundColor Cyan
     Write-Host "  (leave empty)              - All drivers in SUBTARGET" -ForegroundColor Gray
     Write-Host "  pacman                     - Pac-Man (auto-convert to full path)" -ForegroundColor Gray
@@ -165,8 +167,17 @@ if ($NoDebug) {
 }
 
 if ($Debug -eq "Y" -and $PSBoundParameters.ContainsKey('Debug') -eq $false -and -not $Subtarget) {
-    $Debug = Read-Host "`nEnable exception handling? (Y/n)"
-    if (-not $Debug) { $Debug = "Y" }
+    Write-Host "`n[OPTIMIZATION] Choose mode:" -ForegroundColor Cyan
+    Write-Host "  1. Debug/Development (Exceptions Enabled, -O3)" -ForegroundColor Gray
+    Write-Host "  2. Production (Exceptions Disabled, -Oz, LTO, Smallest file)" -ForegroundColor Yellow
+    $mode = Read-Host "`nChoose mode (1 or 2, default: 1)"
+    if ($mode -eq "2") {
+        $Debug = "n"
+        $Production = $true
+    } else {
+        $Debug = "Y"
+        $Production = $false
+    }
 }
 
 if ($Debug -like "n*") {
@@ -289,9 +300,19 @@ try {
                 
                 # Patch rule link
                 $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
-                # Move flags back to CLI to avoid potential rsp parsing issues, but keep objects in rsp
-                # Changed to -O3 (Aggressive Optimization) to fix "local count too large" via aggressive var elimination
-                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -O3 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s DISABLE_EXCEPTION_CATCHING=0 -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
+                
+                # Aggressive Optimization for 'ample' target
+                $optFlags = "-O3"
+                if ($Production) {
+                    $optFlags = "-Oz -flto"
+                } elseif ($Subtarget -eq "ample") {
+                    $optFlags += " -flto" # Link Time Optimization for smaller/faster binary
+                }
+                
+                $memFlags = "-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1073741824 -s MAXIMUM_MEMORY=4294967296"
+                $exceptionFlags = if ($Production) { "-s DISABLE_EXCEPTION_CATCHING=1" } else { "-s DISABLE_EXCEPTION_CATCHING=0" }
+
+                $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ $optFlags $memFlags $exceptionFlags -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
                 
                 if ($content -match $linkPattern) {
                     $content = $content -replace $linkPattern, $linkReplacement
@@ -300,7 +321,7 @@ try {
                 # CRITICAL: Replace $(EMSCRIPTEN) with absolute path for Windows CMD
                 # Ninja passes the command to cmd /c, which needs the actual path
                 # NOTE: Use .Replace() because PowerShell interprets $( as subexpression
-                $content = $content.Replace('$(EMSCRIPTEN)', 'C:\dev\MameWasm\emsdk\upstream\emscripten')
+                $content = $content.Replace('$(EMSCRIPTEN)', "$PSScriptRoot\emsdk\upstream\emscripten")
                 
                 # CRITICAL: Escape $(2) as $$(2) for ninja (used by mcs96make.py commands)
                 # Ninja interprets $(...) as variable expansion, needs $$ for literal $
