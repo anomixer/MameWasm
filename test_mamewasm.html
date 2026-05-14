@@ -106,12 +106,17 @@
     <h1>MAME WASM Test</h1>
 
     <div id="controls">
+        <label for="js-input">WASM JS:</label>
+        <input type="text" id="js-input" value="mametiny.js" placeholder="e.g. mamesupracan.js">
         <label for="driver-input">Driver:</label>
-        <input type="text" id="driver-input" value="" placeholder="e.g. pacman, robby">
+        <input type="text" id="driver-input" value="" placeholder="e.g. pacman, supracan">
+        <label for="extra-args">Extra Args:</label>
+        <input type="text" id="extra-args" value="" placeholder="e.g. -cart game">
         <label for="rom-file">ROM:</label>
-        <input type="file" id="rom-file" accept=".zip,.7z,.rar,.chd">
+        <input type="file" id="rom-file" accept=".zip,.7z,.rar,.chd" multiple>
         <button id="load-btn" onclick="loadRomAndRestart()">Load &amp; Run</button>
-        <span id="rom-status">Select a ROM file</span>
+        <button id="clear-btn" style="background:#f44336" onclick="clearSettings()">Clear Settings</button>
+        <span id="rom-status">Select ROM file(s)</span>
     </div>
 
     <div id="status">Select a ROM file and click "Load & Run"</div>
@@ -131,14 +136,25 @@
         var statusElement = document.getElementById('status');
         var progressElement = document.getElementById('progress');
         var outputElement = document.getElementById('output');
+        var jsInput = document.getElementById('js-input');
         var driverInput = document.getElementById('driver-input');
+        var extraArgsInput = document.getElementById('extra-args');
         var romFileInput = document.getElementById('rom-file');
         var loadBtn = document.getElementById('load-btn');
         var romStatus = document.getElementById('rom-status');
 
-        function log(msg) {
-            outputElement.value += msg + "\n";
+        // Restore UI state
+        var storedJs = sessionStorage.getItem('mame_js') || 'mametiny.js';
+        jsInput.value = storedJs;
+        var storedArgs = sessionStorage.getItem('mame_args') || '';
+        extraArgsInput.value = storedArgs;
+        var storedDriver = sessionStorage.getItem('mame_driver');
+
+        function log(msg, type) {
+            var prefix = type === 'err' ? '[ERROR] ' : '';
+            outputElement.value += prefix + msg + "\n";
             outputElement.scrollTop = outputElement.scrollHeight;
+            console.log(prefix + msg);
         }
 
         // IndexedDB for storing ROM data
@@ -160,15 +176,43 @@
             });
         }
 
-        function storeRom(name, data) {
-            return openDB().then(function(db) {
-                return new Promise(function(resolve, reject) {
-                    var tx = db.transaction(STORE_NAME, 'readwrite');
-                    tx.objectStore(STORE_NAME).put(data, 'romData');
-                    tx.objectStore(STORE_NAME).put(name, 'romName');
-                    tx.oncomplete = function() { resolve(); };
-                    tx.onerror = function(e) { reject(e.target.error); };
-                });
+        function storeRoms(files) {
+            return new Promise(function(resolve, reject) {
+                var readers = [];
+                var filesRead = 0;
+                var fileData = [];
+
+                if (files.length === 0) return resolve();
+
+                for (var i = 0; i < files.length; i++) {
+                    (function(file) {
+                        var reader = new FileReader();
+                        reader.onload = function(e) {
+                            fileData.push({ name: file.name, data: e.target.result });
+                            filesRead++;
+                            if (filesRead === files.length) {
+                                // All files read into memory, now save to DB in one transaction
+                                openDB().then(function(db) {
+                                    var tx = db.transaction(STORE_NAME, 'readwrite');
+                                    var store = tx.objectStore(STORE_NAME);
+                                    store.clear();
+                                    
+                                    var romList = [];
+                                    fileData.forEach(function(item) {
+                                        store.put(item.data, 'romData_' + item.name);
+                                        romList.push(item.name);
+                                    });
+                                    store.put(romList, 'romList');
+                                    
+                                    tx.oncomplete = function() { resolve(); };
+                                    tx.onerror = function(e) { reject(e.target.error); };
+                                }).catch(reject);
+                            }
+                        };
+                        reader.onerror = function() { reject('Failed to read file: ' + file.name); };
+                        reader.readAsArrayBuffer(file);
+                    })(files[i]);
+                }
             });
         }
 
@@ -215,36 +259,58 @@
         var romName = '';
         var romData = null;
 
-        // Read driver from sessionStorage (sync) - set by loadRomAndRestart before reload
+        // Read driver and args from sessionStorage (sync)
         var storedDriver = sessionStorage.getItem('mame_driver');
+        var storedArgs = sessionStorage.getItem('mame_args') || '';
+        
         if (storedDriver) {
             Module.arguments = [storedDriver, '-verbose', '-window', '-video', 'soft', '-resolution', '640x480', '-rompath', '/roms'];
+            
+            // Append extra args if present
+            if (storedArgs) {
+                var parts = storedArgs.split(/\s+/);
+                parts.forEach(function(p) {
+                    if (p.trim()) Module.arguments.push(p.trim());
+                });
+            }
         }
 
         // Try to load ROM from IndexedDB
-        loadStoredRom().then(function(rom) {
-            if (rom.name && rom.data) {
-                romReady = true;
-                romName = rom.name;
-                romData = rom.data;
+        loadStoredRoms().then(function(roms) {
+            if (roms && roms.length > 0) {
                 document.getElementById('welcome').style.display = 'none';
+                log('📂 Files currently in memory: ' + roms.map(r => r.name).join(', '));
+                
+                // Extra check: is the cart file here?
+                if (storedArgs.indexOf('-cart') !== -1) {
+                    var cartMatch = storedArgs.match(/-cart\s+([^\s]+)/);
+                    if (cartMatch) {
+                        var cartPath = cartMatch[1];
+                        var cartName = cartPath.split('/').pop();
+                        var found = roms.some(r => r.name === cartName || r.name === cartName + '.zip');
+                        if (!found) {
+                            log('⚠️ WARNING: Cartridge "' + cartName + '" not found in mounted files!', 'err');
+                        }
+                    }
+                }
             }
         }).catch(function() {});
 
         Module.preRun.push(function() {
             Module.addRunDependency('rom');
-            loadStoredRom().then(function(rom) {
-                if (rom.name && rom.data) {
-                    romReady = true;
-                    romName = rom.name;
-                    romData = rom.data;
+            loadStoredRoms().then(function(roms) {
+                if (roms && roms.length > 0) {
                     document.getElementById('welcome').style.display = 'none';
                     try { FS.mkdir('/roms'); } catch (ex) {}
-                    FS.writeFile('/roms/' + romName, new Uint8Array(romData));
-                    log('✅ Mounted ' + romName + ' to /roms/' + romName);
+                    
+                    roms.forEach(function(rom) {
+                        FS.writeFile('/roms/' + rom.name, new Uint8Array(rom.data));
+                        log('✅ Mounted ' + rom.name + ' to /roms/' + rom.name);
+                    });
                 }
                 Module.removeRunDependency('rom');
-            }).catch(function() {
+            }).catch(function(err) {
+                log('❌ Error loading ROMs: ' + err);
                 Module.removeRunDependency('rom');
             });
         });
@@ -258,73 +324,124 @@
             outputElement.scrollTop = outputElement.scrollHeight;
         };
 
-        function loadStoredRom() {
+        function loadStoredRoms() {
             return openDB().then(function(db) {
                 return new Promise(function(resolve, reject) {
                     var tx = db.transaction(STORE_NAME, 'readonly');
-                    var nameReq = tx.objectStore(STORE_NAME).get('romName');
-                    var dataReq = tx.objectStore(STORE_NAME).get('romData');
-                    nameReq.onsuccess = function() {
-                        dataReq.onsuccess = function() {
-                            resolve({ name: nameReq.result, data: dataReq.result });
-                        };
-                        dataReq.onerror = function(e) { reject(e.target.error); };
+                    var listReq = tx.objectStore(STORE_NAME).get('romList');
+                    listReq.onsuccess = function() {
+                        var list = listReq.result;
+                        if (!list) return resolve([]);
+                        
+                        var results = [];
+                        var loaded = 0;
+                        list.forEach(function(name) {
+                            var dataReq = tx.objectStore(STORE_NAME).get('romData_' + name);
+                            dataReq.onsuccess = function() {
+                                results.push({ name: name, data: dataReq.result });
+                                loaded++;
+                                if (loaded === list.length) resolve(results);
+                            };
+                        });
                     };
-                    nameReq.onerror = function(e) { reject(e.target.error); };
+                    listReq.onerror = function() { reject('No ROM list found'); };
                 });
             });
         }
 
         function loadRomAndRestart() {
-            var file = romFileInput.files[0];
-            if (!file) {
-                romStatus.textContent = 'Please select a ROM file first';
+            var files = romFileInput.files;
+            if (files.length === 0) {
+                romStatus.textContent = 'Please select ROM file(s) first';
                 romStatus.style.color = '#f44336';
                 return;
             }
 
             var driver = driverInput.value.trim().toLowerCase();
+            var jsFile = jsInput.value.trim();
+            
             if (!driver) {
-                romStatus.textContent = 'Please enter a driver name';
-                romStatus.style.color = '#f44336';
+                alert('Please enter a Driver name (e.g. supracan)');
+                return;
+            }
+            if (!jsFile) {
+                alert('Please enter the WASM JS filename (e.g. mamesupracan.js)');
                 return;
             }
 
-            romStatus.textContent = 'Loading ' + file.name + '...';
+            romStatus.textContent = 'Loading ' + files.length + ' file(s)...';
             romStatus.style.color = '#00bcd4';
             loadBtn.disabled = true;
 
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                sessionStorage.setItem('mame_driver', driver);
-                storeRom(file.name, e.target.result).then(function() {
-                    window.location.reload();
-                }).catch(function(err) {
-                    romStatus.textContent = 'Failed to store ROM: ' + err;
-                    romStatus.style.color = '#f44336';
-                    loadBtn.disabled = false;
-                });
-            };
-            reader.onerror = function() {
-                romStatus.textContent = 'Failed to read file';
+            var jsFile = jsInput.value.trim() || 'mametiny.js';
+            if (!jsFile.endsWith('.js')) jsFile += '.js';
+            
+            var extraArgs = extraArgsInput.value.trim();
+
+            sessionStorage.setItem('mame_driver', driver);
+            sessionStorage.setItem('mame_js', jsFile);
+            sessionStorage.setItem('mame_args', extraArgs);
+            
+            storeRoms(files).then(function() {
+                window.location.reload();
+            }).catch(function(err) {
+                romStatus.textContent = 'Failed to store ROMs: ' + err;
                 romStatus.style.color = '#f44336';
-                log('❌ Failed to read ' + file.name);
                 loadBtn.disabled = false;
-            };
-            reader.readAsArrayBuffer(file);
+            });
         }
 
+        function clearSettings() {
+            sessionStorage.clear();
+            window.location.reload();
+        }
+
+        // Prevent MAME from stealing keys when typing in input boxes
+        [jsInput, driverInput, extraArgsInput].forEach(function(el) {
+            el.addEventListener('keydown', function(e) {
+                e.stopPropagation();
+            }, true);
+            el.addEventListener('keyup', function(e) {
+                e.stopPropagation();
+            }, true);
+        });
+
         romFileInput.addEventListener('change', function() {
-            var file = this.files[0];
-            if (file) {
-                var name = file.name.replace(/\.(zip|7z|rar|chd)$/i, '').toLowerCase();
-                driverInput.value = name;
-                romStatus.textContent = 'Ready: ' + file.name + ' (driver: ' + name + ')';
+            var files = this.files;
+            if (files.length > 0) {
+                // Only auto-fill if the driver input is currently empty
+                if (!driverInput.value.trim()) {
+                    var name = files[0].name.replace(/\.(zip|7z|rar|chd)$/i, '').toLowerCase();
+                    driverInput.value = name;
+                }
+                romStatus.textContent = 'Selected ' + files.length + ' file(s).';
                 romStatus.style.color = '#aaa';
             }
         });
+        // Dynamic Script Loader with Error Handling
+        (function() {
+            log('🚀 Initializing environment...');
+            log('📁 Target JS: ' + storedJs);
+            log('🎮 Target Driver: ' + (storedDriver || '(none)'));
+            log('⚙️ Arguments: ' + JSON.stringify(Module.arguments));
+
+            var script = document.createElement('script');
+            script.async = true;
+            script.type = 'text/javascript';
+            
+            script.onload = function() {
+                log('✅ Script ' + storedJs + ' loaded successfully.');
+            };
+            
+            script.onerror = function() {
+                log('❌ FAILED to load script: ' + storedJs + '. Please check if the file exists in the root directory.', 'err');
+                statusElement.innerHTML = '<span style="color:red">Error: ' + storedJs + ' not found!</span>';
+            };
+            
+            script.src = storedJs;
+            document.body.appendChild(script);
+        })();
     </script>
-    <script async type="text/javascript" src="mametiny.js"></script>
 </body>
 
 </html>

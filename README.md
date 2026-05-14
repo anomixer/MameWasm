@@ -1,99 +1,83 @@
-# MAME WASM Build Factory - Complete Guide (v3.0)
+# MAME WASM Build Factory (v3.1)
 
 > 🇹🇼 [繁體中文版](README-TW.md)
-> 🎮 [Play Robby Roto](https://anomixer.github.io/MameWasm/) | [Load Your ROM](https://anomixer.github.io/MameWasm/play.html)
+> 🎮 [Play Robby Roto](https://anomixer.github.io/MameWasm/) | [Load your own ROM](https://anomixer.github.io/MameWasm/play.html)
 
-Automated toolset for compiling MAME WebAssembly builds on Windows and Linux. While highly optimized for the AmpleWeb project, it is a general-purpose factory for creating stable and efficient MAME WASM binaries.
+Automated toolset for compiling MAME to WebAssembly with high stability and optimization. While optimized for AmpleWeb, this repository serves as a general-purpose build factory for any MAME-to-WASM needs.
 
-## 📋 Project Structure
+## 📋 Repository Structure
 
 ```
 .
-├── setup.ps1                    ← Environment initialization (run first)
-├── build.ps1                    ← Main build script (Windows, with Production mode)
-├── build-linux.ps1              ← Main build script (Linux)
-├── analyze_roms_v3.py           ← Independent ROM dependency analyzer
-├── verify_mame_targets.ps1      ← Build verification tool (developer)
-├── server.py                    ← Simple local web server (for testing)
-├── test_mamewasm.html           ← MAME WASM Loader (ROM file picker)
-├── test_emularity.html          ← Emularity testing page (Robby Roto)
-├── Dockerfile                   ← Docker build environment
-├── docker-compose.yml           ← Docker Compose configuration
-├── README.md                    ← This complete guide
-├── README-TW.md                 ← Traditional Chinese guide
-├── custom_targets/              ← User-defined target scripts (incl. 'ample')
-├── emularity/                   ← Web loader components
-├── mame/                        ← MAME source (auto-downloaded)
-├── emsdk/                       ← Emscripten SDK (auto-downloaded)
-├── bin/                         ← Place native mame.exe here for analysis
-└── roms/                        ← Your ROM files (manual)
+├── 🛠️ Build Scripts
+│   ├── setup.ps1             ← Initialization (Run first)
+│   ├── build.ps1             ← Main build script (Windows)
+│   └── build-linux.ps1       ← Main build script (Linux)
+│
+├── 🎯 Custom Targets
+│   └── custom_targets/       ← LUA/LST definitions (supracan, ample)
+│
+├── 🌐 Web & Testing
+│   ├── test_mamewasm.html    ← Advanced multi-ROM loader
+│   ├── test_emularity.html   ← Emularity test page (Robby Roto)
+│   └── server.py             ← Local test server
+│
+├── 📦 Core Components
+│   ├── mame/                 ← MAME source tree
+│   ├── emsdk/                ← Emscripten SDK
+│   └── bin/                  ← Build tools & native MAME
+│
+└── 💾 ROMs & Data
+    ├── roms/                 ← Your ROM files
+    └── analyze_roms_v3.py    ← Dependency analyzer
 ```
 
 ---
 
 ## 🚀 Quick Start (5 Minutes)
 
-### First Time Setup
+### Initial Setup
 
 ```powershell
 # Run as Administrator
 PowerShell -ExecutionPolicy Bypass -File ./setup.ps1
 
-# Then start building
+# Start Building
 PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 ```
 
 ### What happens?
-
-1. **setup.ps1** (one time):
-   - Installs Emscripten SDK.
-   - Downloads `make` and `ninja` build tools.
-   - Clones MAME source code.
-   - Downloads `robby.zip` (test ROM).
-
-2. **build.ps1** (repeatable):
-   - Provides an interactive interface to choose TARGET and SUBTARGET.
-   - **NEW: Production Mode**: Choose `-Oz` and `LTO` for smallest binaries.
-   - Compiles MAME to WebAssembly using Ninja for speed.
-   - Automatically applies Windows patches (fixes command length limits and JS syntax).
-   - Copies artifacts to the root directory for testing.
-
-3. **Analysis (Optional)**:
-   - Run `python analyze_roms_v3.py` if you need to generate recursive ROM dependency mappings (specifically for AmpleWeb integration).
-   - The results will be saved to **`rom_mapping_results_v3.txt`**. You can copy the generated mappings directly into AmpleWeb's config.
-
-4. **Test**:
-   - Run `python server.py`.
-   - Open `test_mamewasm.html` in your browser.
+1. **setup.ps1**: Installs EMSDK, build tools (Ninja/Make), and clones MAME source.
+2. **build.ps1**: Interactive UI to choose TARGET, SUBTARGET, and Optimization mode.
+3. **Test**: Run `python server.py` and open `test_mamewasm.html`.
 
 ---
 
-## 🌟 Key Feature: Production Mode
+## 🌟 Key Features: Production Mode
 
-When running `build.ps1`, you can now select **Production** mode, which enables:
-- **-Oz Optimization**: Most aggressive binary size reduction.
-- **LTO (Link-Time Optimization)**: Cross-module optimization for better speed and smaller binaries.
-- **1GB Initial Memory**: Ensures heavy machines (Mac 68k, Apple IIgs) boot reliably.
-- **Disabled Exception Catching (Optional)**: Further reduces size and increases performance for stable releases.
+When building via `build.ps1`, you can choose **Production** mode, which enables:
+- **Extreme Optimization (-Oz)**: Aggressive size reduction.
+- **LTO (Link-Time Optimization)**: Cross-module optimization for better performance.
+- **Memory Stability**: Sets `INITIAL_MEMORY` to 1GB and `MAXIMUM_MEMORY` to 4GB.
+- **No Exceptions**: Further reduces size and improves speed for release builds.
 
 ---
 
 ## 🐳 Docker Support (Recommended for Full Builds)
 
-To avoid Windows-specific file locks and linker issues during parallel compilation, we recommend using Docker.
-
+To avoid file locking and linker issues on Windows, use the containerized environment:
 ```bash
-# Start the build environment via Docker Compose
+# Start build via Docker Compose
 docker-compose run mame-build mame-build TARGET=mame SUBTARGET=ample
 ```
 
-This uses a stable Linux environment inside a container to produce high-quality WASM artifacts.
+This ensures a stable Linux-based build environment for the best results.
 
 ---
 
 ## 🐧 Native Linux / WSL Support
 
-If you prefer not to use Docker, you can build natively on Linux/WSL.
+If you prefer not to use Docker, you can build directly on Linux/WSL.
 
 ### Prerequisites (Ubuntu/Debian)
 ```bash
@@ -103,63 +87,85 @@ sudo apt update && sudo apt install -y build-essential git python3
 ### Quick Start (Linux / WSL)
 1. **Setup EMSDK**: `git clone https://github.com/emscripten-core/emsdk.git`
 2. **Activate**: `cd emsdk && ./emsdk install latest && ./emsdk activate latest && source ./emsdk_env.sh`
-3. **Build**: `cd mame && emmake make -j$(nproc) TARGET=mame SUBTARGET=ample OSD=sdl TARGETOS=asmjs`
+3. **Build**: `PowerShell -File ./build-linux.ps1` (or use manual `emmake make`)
 
 ---
 
-## 📊 Parameters & Custom Targets
+## 📊 Build Parameters Reference
 
-### SUBTARGET Selection
+| SUBTARGET | Description | Size | Recommended Mode |
+|-----------|------|------|----------|
+| `tiny` ⭐ | Recommended for testing | 30-50MB | Debug (Fast) |
+| `ample` 🚀| Optimized for AmpleWeb | 45-60MB | Production (Oz + LTO) |
+| `supracan`| Super A'Can custom target | ~40MB | Production |
+| `mame` | Full version (40k drivers) | ~210MB | Docker (Recommended) |
 
-| SUBTARGET | Description | Est. Size | Recommended Mode |
-|-----------|-------------|-----------|------------------|
-| `tiny` ⭐ | **Recommended for Testing** | 30-50MB | Debug (Fast) |
-| `ample` 🚀| **AmpleWeb Optimized** | 45-60MB | Production (Small) |
-| `mame` | Full Build (40k+ drivers) | ~210MB | Docker (Stable) |
+### 💡 Build Examples
 
-### 🔍 Independent Dependency Analyzer (`analyze_roms_v3.py`) [Optional]
-A specialized tool for projects like AmpleWeb to automatically analyze recursive ROM dependencies.
-- **Usage**: Place a native `mame.exe` in `bin/`, update `custom_targets/ample.lst`, and run the script.
-- **Advantage**: Fully decoupled from external projects.
+You can use the `-Sources` parameter to build specific machines:
+
+*   **Apple IIe**:
+    `PowerShell -File ./build.ps1 -Subtarget tiny -Sources apple2e`
+*   **Pac-Man**:
+    `PowerShell -File ./build.ps1 -Subtarget tiny -Sources pacman`
+*   **Arcade Multi-pack (Multiple drivers)**:
+    `PowerShell -File ./build.ps1 -Subtarget tiny -Sources pacman,robby,dkong`
+*   **Custom Target (Super A'Can)**:
+    `PowerShell -File ./build.ps1 -Subtarget supracan -Optimization Production`
+    *(Note: Production mode enables Oz and LTO for the smallest and fastest WASM binary.)*
+
+---
+
+## 🎮 Test Environment (`test_mamewasm.html`)
+
+This project includes a premium, local-friendly test page for rapid verification of your WASM builds.
+
+### 🔧 UI Field Description
+1.  **WASM JS**: The filename of your build output (e.g., `mamesupracan.js` or `mametiny.js`).
+2.  **Driver**: The MAME machine name (e.g., `supracan` or `apple2e`).
+3.  **Extra Args**: Additional MAME CLI arguments.
+    *   *Example*: Use `-cart /roms/game.zip` to mount a cartridge.
+4.  **ROM File Selection**: Click to select all required ZIP files.
+
+### 📝 Usage Guide (Step-by-Step)
+1.  **Configure**: Enter the **WASM JS** and **Driver** name first.
+2.  **Add Args**: If mounting a cartridge, enter the path in **Extra Args** (must start with `/roms/`).
+3.  **Select Files**: Click "Select Files" and **select ALL required ZIPs simultaneously** (e.g., `supracan.zip` + `umc6650.zip` + `game.zip`).
+4.  **Run**: Click **Load & Run**. The page remembers your settings and reloads to start MAME.
+5.  **Reset**: If you get stuck, click the red **Clear Settings** button to reset the UI.
 
 ---
 
 ## 💡 Pro Tips
 
-### Tip 1: Incremental Builds
-- As long as you don't switch SUBTARGETs, subsequent builds take only 1-5 minutes.
+### Tip 1: Advanced Custom Targets
+MAME's architecture is complex. For machines requiring specific cores (like `supracan`), a simple `-Sources` flag might not suffice. 
+- You can create a `.lst` and a `.lua` definition in `custom_targets/`.
+- **AI-Powered Workflow**: Ask an AI (Claude/Antigravity) to "Write a MAME Genie LUA definition for target X" and place it in `custom_targets`.
+
+### Tip 2: Incremental Builds
+- Subsequent builds take only 1-5 minutes as long as you don't switch SUBTARGET.
 - If you modify `custom_targets/*.lst`, we recommend running `build.ps1` again.
-
-### Tip 2: WASM Optimization
-- If your WASM files are over 100MB, use **Production** mode.
-- Enabling **LTO** increases linking time but significantly improves runtime performance in the browser.
-
-### Tip 3: ROM Setup
-- Create a `./roms` folder and place ZIPs (e.g., `apple2e.zip`) there.
-- When using `test_mamewasm.html`, the loader automatically writes ZIPs to the WASM virtual filesystem.
 
 ---
 
 ## ❌ Troubleshooting & FAQ
 
 ### Issue: "Aborted()" or "Out of memory" at runtime
-- **Fix**: The machine needs more memory than the WASM default. The new `build.ps1` sets `INITIAL_MEMORY` to 1GB. Please rebuild using the updated script.
+- **Fix**: The machine needs more memory. Rebuild using `build.ps1` which sets memory to 1GB.
 
 ### Issue: "PAGE_SIZE" macro conflict
-- **Fix**: This is a naming conflict between MAME source and the Emscripten SDK. Rename `PAGE_SIZE` in `cmi.cpp` or `msxdos2.cpp` as described in the "Known Source Patches" section.
+- **Fix**: Conflict between MAME and Emscripten. Rename `PAGE_SIZE` in `cmi.cpp` or `msxdos2.cpp`.
 
 ### Issue: Ninja error "multiple rules generate" on Windows
-- **Fix**: The build script now includes auto-patchers for `dasm.ninja` and `optional.ninja`. If it persists, try deleting the `build/` directory and restarting the build.
+- **Fix**: The script auto-patches `dasm.ninja`. If it persists, try deleting the `build/` directory and restarting.
 
 ---
 
 ## ⚠️ Important Notes
-
-- **Independence**: This repository is now 100% self-contained. No external paths required.
+- **Independence**: 100% self-contained toolchain. No external dependencies required.
 - **Path Limits**: Folder paths MUST NOT contain Chinese characters or spaces.
-- **RAM Requirements**: At least 16GB RAM is recommended for building the full `mame` target.
+- **RAM Requirements**: At least 16GB RAM is recommended for full `mame` target builds.
 
----
-
-**Last Updated**: 2026-05-03
-**Version**: 3.0 (Production Mode, Dockerized, Independent Tools, LTO Support)
+**Last Updated**: 2026-05-14
+**Version**: 3.1

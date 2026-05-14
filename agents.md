@@ -55,3 +55,34 @@ Clarify the general-purpose nature of the repository and emphasize the optional 
 |-----------|--------|---------|
 | **Documentation** | ✅ Refined | General-purpose vs AmpleWeb specific features clarified. |
 | **Analysis Tool** | ⚠️ Optional | Marked as optional/specific to AmpleWeb use cases. |
+
+---
+
+## Session: 2026-05-14 — Custom Target & Multi-ROM Support (Super A'Can Success)
+
+### 🎯 Objective
+Enable support for complex machines like Super A'Can (`supracan`) which require multiple ROMs/BIOS and specific CPU/Sound dependencies.
+
+### ✅ Key Changes
+
+#### 1. Custom Target System
+- Created `custom_targets/supracan.lua` and `supracan.lst`.
+- Fixed the M68000 core naming issue in Genie (`M680X0`).
+- Proved that complex drivers can be built as lightweight standalone WASM binaries by defining explicit LUA projects.
+
+#### 2. Test Page Revolution (`test_mamewasm.html`)
+- **Multi-File Mounting**: Now supports selecting multiple ZIPs (e.g., BIOS + Game) and mounting them all to `/roms`.
+- **Dynamic JS Loading**: Added a UI field to specify which WASM JS file to run (no more manual renaming).
+- **Extra Args Support**: Added an input field for MAME CLI options (crucial for `-cart` mounting).
+- **Focus Protection**: Implemented event blocking to prevent MAME from stealing keyboard focus while typing in UI fields.
+
+#### 3. Build Script Polish
+- Refined interactive logic in `build.ps1` to honor CLI parameters more strictly and skip redundant prompts.
+
+### 📋 Current Status
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **Supracan Target** | ✅ Verified | Runs "Boom Zoo" successfully in browser. |
+| **Test Loader** | 🚀 Upgraded | Supports multi-ROM consoles and dynamic JS selection. |
+| **Build System** | 🛠️ Flexible | Custom targets can now be easily defined via AI-assisted LUA files. |

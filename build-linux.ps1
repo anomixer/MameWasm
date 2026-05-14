@@ -89,7 +89,7 @@ if (-not $Subtarget -and $PSBoundParameters.ContainsKey('Subtarget') -eq $false)
 Write-Host "  Selected: $Subtarget" -ForegroundColor Green
 
 # SOURCES
-if ($Sources -eq "" -and $PSBoundParameters.ContainsKey('Sources') -eq $false) {
+if ($Sources -eq "" -and $PSBoundParameters.ContainsKey('Sources') -eq $false -and $PSBoundParameters.ContainsKey('Subtarget') -eq $false) {
     Write-Host "`n[SOURCES] Available options:" -ForegroundColor Cyan
     Write-Host "  (leave empty)              - All drivers in SUBTARGET" -ForegroundColor Gray
     Write-Host "  pacman                     - Pac-Man" -ForegroundColor Gray
@@ -114,7 +114,7 @@ if ($NoDebug) {
     $Debug = "n"
 }
 
-if ($Debug -eq "Y" -and $PSBoundParameters.ContainsKey('Debug') -eq $false) {
+if ($Debug -eq "Y" -and $PSBoundParameters.ContainsKey('Debug') -eq $false -and $PSBoundParameters.ContainsKey('Subtarget') -eq $false) {
     Write-Host "`n[OPTIMIZATION] Choose mode:" -ForegroundColor Cyan
     Write-Host "  1. Debug/Development (Exceptions Enabled, -O3)" -ForegroundColor Gray
     Write-Host "  2. Production (Exceptions Disabled, -Oz, LTO, Smallest file)" -ForegroundColor Yellow

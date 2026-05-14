@@ -10,7 +10,8 @@ rom/
 bin/
 
 # ROMs (user private)
-roms/
+roms/*
+!roms/robby.zip
 *.zip
 
 # Node/Python
