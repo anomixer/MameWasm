@@ -55,19 +55,88 @@ Write-Host "[+] Emscripten: $($emccTest[0])" -ForegroundColor Green
 $env:TOOLCHAIN = ""
 Write-Host "[+] Environment ready" -ForegroundColor Green
 
-# Default values
-if (!$Subtarget) { $Subtarget = "pacmantest" }
-Write-Host "  Subtarget: $Subtarget" -ForegroundColor Green
+# ============================================================================
+# INPUT COLLECTION
+# ============================================================================
 
+Write-Host "`n[*] Collecting build parameters..." -ForegroundColor Yellow
+
+# TARGET
+if (-not $Target -and $PSBoundParameters.ContainsKey('Target') -eq $false) {
+    Write-Host "`n[TARGET] Available options:" -ForegroundColor Cyan
+    Write-Host "  mame       - Standard MAME (default, recommended)" -ForegroundColor Gray
+    Write-Host "  mess       - Retro computers & consoles" -ForegroundColor Gray
+    $Target = Read-Host "`nChoose TARGET (default: mame)"
+    if (-not $Target) { $Target = "mame" }
+}
+Write-Host "  Selected: $Target" -ForegroundColor Green
+
+# SUBTARGET
+if (-not $Subtarget -and $PSBoundParameters.ContainsKey('Subtarget') -eq $false) {
+    Write-Host "`n[SUBTARGET] Available options:" -ForegroundColor Cyan
+    Write-Host "  tiny       - Minimal build (RECOMMENDED) ~30-50MB" -ForegroundColor Yellow
+    Write-Host "  ample      - AmpleWeb optimized build (Best for Apple/Mac/8-bit) ~45MB" -ForegroundColor Cyan
+    if ($Target -eq "mame") {
+        Write-Host "  mame       - Full MAME (all arcade) ~80-100MB" -ForegroundColor Gray
+        Write-Host "  arcade     - Arcade games only ~70-90MB" -ForegroundColor Gray
+    } elseif ($Target -eq "mess") {
+        Write-Host "  mess       - Full MESS (all computers/consoles) ~60-80MB" -ForegroundColor Gray
+    }
+    Write-Host "  pacmantest - Pac-Man test build ~4MB (FASTEST)" -ForegroundColor Yellow
+    $Subtarget = Read-Host "`nChoose SUBTARGET (default: tiny)"
+    if (-not $Subtarget) { $Subtarget = "tiny" }
+}
+Write-Host "  Selected: $Subtarget" -ForegroundColor Green
+
+# SOURCES
+if ($Sources -eq "" -and $PSBoundParameters.ContainsKey('Sources') -eq $false) {
+    Write-Host "`n[SOURCES] Available options:" -ForegroundColor Cyan
+    Write-Host "  (leave empty)              - All drivers in SUBTARGET" -ForegroundColor Gray
+    Write-Host "  pacman                     - Pac-Man" -ForegroundColor Gray
+    Write-Host "  robby                      - Robby Roto" -ForegroundColor Gray
+    Write-Host "  src/mame/umc/supracan.cpp  - Super A'Can" -ForegroundColor Gray
+    $Sources = Read-Host "`nChoose SOURCES (press Enter for all)"
+}
+
+if ($Sources) {
+    if ($Sources -eq "pacman") {
+        $Sources = "src/mame/pacman/pacman.cpp"
+    } elseif ($Sources -eq "robby") {
+        $Sources = "src/mame/midway/astrocde.cpp"
+    }
+    Write-Host "  Selected: $Sources" -ForegroundColor Green
+} else {
+    Write-Host "  Selected: (all drivers)" -ForegroundColor Green
+}
+
+# Exception handling / Debug Mode
 if ($NoDebug) {
     $Debug = "n"
+}
+
+if ($Debug -eq "Y" -and $PSBoundParameters.ContainsKey('Debug') -eq $false) {
+    Write-Host "`n[OPTIMIZATION] Choose mode:" -ForegroundColor Cyan
+    Write-Host "  1. Debug/Development (Exceptions Enabled, -O3)" -ForegroundColor Gray
+    Write-Host "  2. Production (Exceptions Disabled, -Oz, LTO, Smallest file)" -ForegroundColor Yellow
+    $mode = Read-Host "`nChoose mode (1 or 2, default: 1)"
+    if ($mode -eq "2") {
+        $Debug = "n"
+        $Production = $true
+    } else {
+        $Debug = "Y"
+        $Production = $false
+    }
+}
+
+if ($Debug -like "n*") {
     $DisableExceptions = "1"
     $MameDebug = "0"
+    Write-Host "  Selected: Exceptions Disabled (faster)" -ForegroundColor Green
 } else {
     $DisableExceptions = "0"
     $MameDebug = "0"
+    Write-Host "  Selected: Exceptions Enabled (stack traces visible)" -ForegroundColor Green
 }
-Write-Host "  Exceptions: $(if($DisableExceptions -eq '1'){'Disabled'}else{'Enabled'})" -ForegroundColor Green
 
 # Determine CPU cores
 $cores = (Get-Content /proc/cpuinfo | Measure-Object -Property processor -Maximum).Maximum
@@ -141,9 +210,21 @@ try {
             # CRITICAL: Escape $(2) as $$(2) for ninja (used by mcs96make.py commands)
             $content = $content.Replace('$(2)', '$$(2)')
             
-            # CRITICAL: Patch link rule to add DISABLE_EXCEPTION_CATCHING=0
+            # Patch link rule
             $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
-            $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ -O3 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=536870912 -s DISABLE_EXCEPTION_CATCHING=0 -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
+            
+            # Aggressive Optimization
+            $optFlags = "-O3"
+            if ($Production) {
+                $optFlags = "-Oz -flto"
+            } elseif ($Subtarget -eq "ample") {
+                $optFlags += " -flto"
+            }
+            
+            $memFlags = "-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1073741824 -s MAXIMUM_MEMORY=4294967296"
+            $exceptionFlags = if ($Production) { "-s DISABLE_EXCEPTION_CATCHING=1" } else { "-s DISABLE_EXCEPTION_CATCHING=0" }
+
+            $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ $optFlags $memFlags $exceptionFlags -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
             
             if ($content -match $linkPattern) {
                 $content = $content -replace $linkPattern, $linkReplacement

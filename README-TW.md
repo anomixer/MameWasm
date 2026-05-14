@@ -3,7 +3,7 @@
 > 🇺🇸 [English Version](README.md)
 > 🎮 [玩 Robby Roto](https://anomixer.github.io/MameWasm/) | [載入你的 ROM](https://anomixer.github.io/MameWasm/play.html)
 
-這是一個自動化的工具包，用於在 Windows 和 Linux 環境下編譯 MAME 的 WebAssembly (WASM) 版本。它簡化了環境設置、源碼下載和編譯參數配置的過程，並針對 AmpleWeb 進行了極致的效能與體積最佳化。
+這是一個自動化的工具包，用於在 Windows 和 Linux 環境下編譯 MAME 的 WebAssembly (WASM) 版本。雖然它針對 AmpleWeb 進行了極致的最佳化，但本質上是一個通用型的 MAME WASM 編譯工廠，適用於各種 Web 整合場景。
 
 ## 📋 目錄結構
 
@@ -58,9 +58,9 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
    - 自動套用 Windows 特定補丁（修正命令長度限制與 JS 語法錯誤）。
    - 將編譯產物複製到根目錄方便測試。
 
-3. **分析與映射**：
-   - 執行 `python analyze_roms_v3.py`。
-   - 分析結果會存入 **`rom_mapping_results_v3.txt`**。你可以直接複製其中的內容到 AmpleWeb 的 `App.tsx` 配置中。
+3. **分析與映射 (選用)**：
+   - 僅當你需要產生 ROM 遞歸依賴映射（通常是為了整合進 AmpleWeb）時，才執行 `python analyze_roms_v3.py`。
+   - 分析結果會存入 **`rom_mapping_results_v3.txt`**。你可以直接複製其中的內容到 AmpleWeb 的配置中。
 
 4. **測試**：
    - 執行 `python server.py` 啟動本地伺服器。
@@ -117,8 +117,8 @@ sudo apt update && sudo apt install -y build-essential git python3
 | `ample` 🚀| **AmpleWeb 專用** | 45-60MB | Production (體積小) |
 | `mame` | 完整版本 (4 萬個驅動) | ~210MB | Docker (最穩定) |
 
-### 🔍 獨立依賴分析工具 (`analyze_roms_v3.py`)
-這是一個專為 AmpleWeb 打造的工具，用於自動遞歸分析機型的 ROM 依賴。
+### 🔍 獨立依賴分析工具 (`analyze_roms_v3.py`) [選用]
+這是一個專為 AmpleWeb 等專案打造的工具，用於自動遞歸分析機型的 ROM 依賴。
 - **用法**：在 `bin/` 放一個原生 `mame.exe`，更新 `custom_targets/ample.lst`，然後執行此腳本。
 - **優點**：不再依賴外部專案路徑，完全獨立運作。
 

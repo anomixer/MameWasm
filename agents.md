@@ -36,7 +36,22 @@ Transform the repository into a fully independent, production-ready toolchain wi
 | **Binary Optimization**| ✅ Oz + LTO | Significant reduction in WASM size for production. |
 | **Independence** | ✅ 100% | No reliance on external project paths. |
 
-### 💡 Tips for next Session
-1. **LTO Benchmarking**: Compare boot times between `-O3` and `-Oz` for the `mac` target.
-2. **Automated Patches**: Integrate common MAME source patches (like `PAGE_SIZE` conflicts) directly into the `build.ps1` flow.
-3. **WASM Multi-threading**: Explore `-s USE_PTHREADS=1` for multi-core host support in MAME.
+---
+
+## Session: 2026-05-14 — Documentation Refinement
+
+### 🎯 Objective
+Clarify the general-purpose nature of the repository and emphasize the optional status of the analysis tooling.
+
+### ✅ Key Changes
+
+#### 1. README Updates (`README.md` & `README-TW.md`)
+- **General Purpose**: Adjusted the introduction to highlight that while optimized for AmpleWeb, the repo is a general MAME WASM build factory.
+- **Optional Analysis**: Formally marked the `analyze_roms_v3.py` step as **Optional** in the Quick Start and Parameter sections, clarifying it is primarily for AmpleWeb ROM mapping.
+
+### 📋 Current Status
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **Documentation** | ✅ Refined | General-purpose vs AmpleWeb specific features clarified. |
+| **Analysis Tool** | ⚠️ Optional | Marked as optional/specific to AmpleWeb use cases. |

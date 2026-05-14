@@ -3,7 +3,7 @@
 > 🇹🇼 [繁體中文版](README-TW.md)
 > 🎮 [Play Robby Roto](https://anomixer.github.io/MameWasm/) | [Load Your ROM](https://anomixer.github.io/MameWasm/play.html)
 
-Automated toolset for compiling MAME WebAssembly builds on Windows and Linux. Optimized for stability, performance, and extremely small binary size for the AmpleWeb project.
+Automated toolset for compiling MAME WebAssembly builds on Windows and Linux. While highly optimized for the AmpleWeb project, it is a general-purpose factory for creating stable and efficient MAME WASM binaries.
 
 ## 📋 Project Structure
 
@@ -58,9 +58,9 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
    - Automatically applies Windows patches (fixes command length limits and JS syntax).
    - Copies artifacts to the root directory for testing.
 
-3. **Analysis**:
-   - Run `python analyze_roms_v3.py`.
-   - The results will be saved to **`rom_mapping_results_v3.txt`**. You can copy the generated mappings directly into AmpleWeb's `App.tsx` config.
+3. **Analysis (Optional)**:
+   - Run `python analyze_roms_v3.py` if you need to generate recursive ROM dependency mappings (specifically for AmpleWeb integration).
+   - The results will be saved to **`rom_mapping_results_v3.txt`**. You can copy the generated mappings directly into AmpleWeb's config.
 
 4. **Test**:
    - Run `python server.py`.
@@ -117,8 +117,8 @@ sudo apt update && sudo apt install -y build-essential git python3
 | `ample` 🚀| **AmpleWeb Optimized** | 45-60MB | Production (Small) |
 | `mame` | Full Build (40k+ drivers) | ~210MB | Docker (Stable) |
 
-### 🔍 Independent Dependency Analyzer (`analyze_roms_v3.py`)
-A specialized tool for AmpleWeb to automatically analyze recursive ROM dependencies.
+### 🔍 Independent Dependency Analyzer (`analyze_roms_v3.py`) [Optional]
+A specialized tool for projects like AmpleWeb to automatically analyze recursive ROM dependencies.
 - **Usage**: Place a native `mame.exe` in `bin/`, update `custom_targets/ample.lst`, and run the script.
 - **Advantage**: Fully decoupled from external projects.
 
