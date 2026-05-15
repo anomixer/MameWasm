@@ -5,7 +5,7 @@ param(
     [string]$Target = "mame",
     [string]$Subtarget = "",
     [string]$Sources = "",
-    [string]$Debug = "Y",
+    [string]$Optimization = "Debug",
     [switch]$NoDebug = $false,
     [switch]$UseMake = $false,
     [switch]$Help = $false
@@ -161,33 +161,38 @@ if ($Sources) {
     Write-Host "  Selected: (all drivers)" -ForegroundColor Green
 }
 
-# Exception handling / Debug Mode
-if ($NoDebug) {
-    $Debug = "n"
-}
-
-if ($Debug -eq "Y" -and $PSBoundParameters.ContainsKey('Debug') -eq $false -and $PSBoundParameters.ContainsKey('Subtarget') -eq $false) {
-    Write-Host "`n[OPTIMIZATION] Choose mode:" -ForegroundColor Cyan
-    Write-Host "  1. Debug/Development (Exceptions Enabled, -O3)" -ForegroundColor Gray
-    Write-Host "  2. Production (Exceptions Disabled, -Oz, LTO, Smallest file)" -ForegroundColor Yellow
-    $mode = Read-Host "`nChoose mode (1 or 2, default: 1)"
-    if ($mode -eq "2") {
-        $Debug = "n"
+# Optimization Mode
+if ($Optimization -eq "Production" -or $NoDebug) {
+    $DebugMode = "n"
+    $Production = $true
+} elseif ($Optimization -eq "Debug") {
+    # If Subtarget is specified, default to Production for speed, unless interactive
+    if ($PSBoundParameters.ContainsKey('Subtarget')) {
+        $DebugMode = "n"
         $Production = $true
     } else {
-        $Debug = "Y"
-        $Production = $false
+        Write-Host "`n[OPTIMIZATION] Choose mode:" -ForegroundColor Cyan
+        Write-Host "  1. Debug/Development (Exceptions Enabled, -O3)" -ForegroundColor Gray
+        Write-Host "  2. Production (Exceptions Disabled, -O3, LTO, SIMD, FASTEST!)" -ForegroundColor Yellow
+        $mode = Read-Host "`nChoose mode (1 or 2, default: 2)"
+        if ($mode -eq "1") {
+            $DebugMode = "Y"
+            $Production = $false
+        } else {
+            $DebugMode = "n"
+            $Production = $true
+        }
     }
 }
 
-if ($Debug -like "n*") {
+if ($DebugMode -eq "n") {
     $DisableExceptions = "1"
     $MameDebug = "0"
-    Write-Host "  Selected: Exceptions Disabled (faster)" -ForegroundColor Green
+    Write-Host "  Selected: Production / High Speed (Exceptions Disabled, LTO, SIMD)" -ForegroundColor Green
 } else {
     $DisableExceptions = "0"
-    $MameDebug = "0" # Keep MAME internal debugger OFF by default to avoid web UI issues
-    Write-Host "  Selected: Exceptions Enabled (stack traces visible)" -ForegroundColor Green
+    $MameDebug = "0" 
+    Write-Host "  Selected: Debug / Compatibility (Exceptions Enabled)" -ForegroundColor Yellow
 }
 
 # ============================================================================
@@ -298,19 +303,31 @@ try {
                     $content = $content -replace $arPattern, $arReplacement
                 }
                 
+                # Patch rule cxx
+                $cxxPattern = 'rule cxx\s+command\s+= cmd /c "(.+?)em\+\+ \$defines \$includes \$flags -MD -MT \$out -MF \$out.d -c \$in -o \$out"'
+                $cxxOpt = ""
+                if ($Production) {
+                    $cxxOpt = "-msimd128 -fno-rtti -fno-stack-protector -fno-asynchronous-unwind-tables -fomit-frame-pointer -finline-functions"
+                }
+                $cxxReplacement = "rule cxx`n  command         = cmd /c `"`$1em++ `$defines `$includes `$flags $cxxOpt -MD -MT `$out -MF `$out.d -c `$in -o `$out`""
+                
+                if ($content -match $cxxPattern) {
+                    $content = $content -replace $cxxPattern, $cxxReplacement
+                }
+
                 # Patch rule link
                 $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
                 
-                # Aggressive Optimization for 'ample' target
+                # Optimization Flags
                 $optFlags = "-O3"
                 if ($Production) {
-                    $optFlags = "-Oz -flto"
+                    $optFlags += " -flto -msimd128 -fno-rtti -fno-stack-protector -fomit-frame-pointer -s MALLOC=emmalloc"
                 } elseif ($Subtarget -eq "ample") {
-                    $optFlags += " -flto" # Link Time Optimization for smaller/faster binary
+                    $optFlags += " -flto" 
                 }
                 
                 $memFlags = "-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1073741824 -s MAXIMUM_MEMORY=4294967296"
-                $exceptionFlags = if ($Production) { "-s DISABLE_EXCEPTION_CATCHING=1" } else { "-s DISABLE_EXCEPTION_CATCHING=0" }
+                $exceptionFlags = "-s DISABLE_EXCEPTION_CATCHING=0" 
 
                 $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ $optFlags $memFlags $exceptionFlags -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
                 

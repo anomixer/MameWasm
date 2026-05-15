@@ -1,5 +1,10 @@
 # Build artifacts
 mame/
+# Keep our custom source files even if mame/ is ignored
+!mame/src/mame/umc/supracan.cpp
+!mame/src/mame/umc/umc6619_sound.cpp
+!mame/src/mame/umc/umc6619_sound.h
+!mame/src/mame/supracan.lst
 
 # Emscripten
 emsdk/
