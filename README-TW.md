@@ -63,6 +63,25 @@ PowerShell -ExecutionPolicy Bypass -File ./build.ps1
 
 ---
 
+## 🧠 直接 WASM 模擬器記憶體讀取技術 (DMA Tech)
+
+本專案提供了一套先進的自訂記憶體讀取通道，允許外部 JavaScript 直接查詢模擬器的核心虛擬記憶體空間（例如 6502 虛擬 CPU 的 RAM），完全繞過了脆弱不穩定的 Heap 堆積指紋掃描（heuristic heap scanning）。
+
+### 導出函數（Exported Functions）
+編譯架構自動將 MAME 的 `running_machine` 核心 C++ 靜態函數導出至 WebAssembly/JavaScript 環境中：
+
+1.  **單字節讀取 (Single Byte Read)**：
+    `uint8_t emscripten_read_ram(uint32_t addr)`
+    *JS 呼叫方式*：`Module._ZN15running_machine19emscripten_read_ramEj(addr)`
+    *說明*：直接從主處理器 `:maincpu` 的 AS_PROGRAM 位址空間（包含軟開關 MMU 映射後的當前 RAM Bank）讀取單個位元組。
+
+2.  **整塊讀取 (Bulk Buffer Read)**：
+    `uint32_t emscripten_read_ram_bulk(uint32_t start_addr, uint32_t length, uint8_t *out_buf)`
+    *JS 呼叫方式*：`Module._ZN15running_machine24emscripten_read_ram_bulkEjjPh(start_addr, length, ptr)`
+    *說明*：將 `:maincpu` 中從 `start_addr` 開始的 `length` 長度記憶體直接複製到由 JS 分配的 WebAssembly 指標（`ptr`）中，適合高效傳輸整頁螢幕 RAM 文字。
+
+---
+
 ## 🐳 Docker 支援（推薦用於完整編譯）
 
 為了避開 Windows 上的檔案鎖定與連結器競爭問題，建議使用 Docker 進行編譯：

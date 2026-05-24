@@ -63,6 +63,25 @@ When building via `build.ps1`, you can choose **Production** mode, which enables
 
 ---
 
+## 🧠 Direct WASM Emulator RAM Query (DMA Tech)
+
+This repository includes a highly advanced and custom memory access mechanism designed to allow external JavaScript files to query the emulator's memory space directly, completely bypassing unstable heap scanning heuristics.
+
+### Exported Functions
+The build automatically exports two custom C++ functions from MAME's `running_machine` structure into WebAssembly/JavaScript:
+
+1.  **Single Byte Read**:
+    `uint8_t emscripten_read_ram(uint32_t addr)`
+    *JS Call*: `Module._ZN15running_machine19emscripten_read_ramEj(addr)`
+    *Description*: Directly queries the `:maincpu` address space program memory for the given address.
+
+2.  **Bulk Buffer Read**:
+    `uint32_t emscripten_read_ram_bulk(uint32_t start_addr, uint32_t length, uint8_t *out_buf)`
+    *JS Call*: `Module._ZN15running_machine24emscripten_read_ram_bulkEjjPh(start_addr, length, ptr)`
+    *Description*: Contiguously reads a memory block from the 6502 CPU space into an allocated WebAssembly pointer (`ptr`), enabling high-performance block memory reading (e.g. text screens).
+
+---
+
 ## 🐳 Docker Support (Recommended for Full Builds)
 
 To avoid file locking and linker issues on Windows, use the containerized environment:
