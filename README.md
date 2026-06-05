@@ -1,4 +1,4 @@
-# MAME WASM Build Factory (v3.1)
+# MAME WASM Build Factory (v0.288)
 
 > 🇹🇼 [繁體中文版](README-TW.md)
 > 🎮 [Play Robby Roto](https://anomixer.github.io/MameWasm/) | [Load your own ROM](https://anomixer.github.io/MameWasm/play.html)
@@ -186,5 +186,5 @@ MAME's architecture is complex. For machines requiring specific cores (like `sup
 - **Path Limits**: Folder paths MUST NOT contain Chinese characters or spaces.
 - **RAM Requirements**: At least 16GB RAM is recommended for full `mame` target builds.
 
-**Last Updated**: 2026-05-14
-**Version**: 3.1
+**Last Updated**: 2026-06-05
+**Version**: 0.288

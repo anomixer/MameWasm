@@ -26,12 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Emscripten
-        uses: mymindstorm/setup-emsdk@v14
+        uses: emscripten-core/setup-emsdk@v14
         with:
-          version: 3.1.35
-
+          version: latest
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -39,7 +37,7 @@ jobs:
 
       - name: Clone MAME source
         run: |
-          git clone --depth 1 --branch mame0287 https://github.com/mamedev/mame.git mame
+          git clone --depth 1 --branch mame0288 https://github.com/mamedev/mame.git mame
 
       - name: Copy custom targets
         run: |
@@ -55,8 +53,9 @@ jobs:
 
       - name: Build MAME tiny (WASM)
         run: |
+          ulimit -n 65536
           cd mame
-          emmake make -j$(nproc) TARGET=mame SUBTARGET=tiny \
+          emmake make -j$(nproc) TARGET=mame SUBTARGET=tiny VERBOSE=1 \
             LDFLAGS="-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1073741824 -s MAXIMUM_MEMORY=4GB -s DISABLE_EXCEPTION_CATCHING=0" \
             DEBUG=0 SYMBOLS=0 NO_USE_MIDI=1 NO_USE_PORTAUDIO=1 NO_USE_PULSEAUDIO=1 NO_USE_SDL2=1 NO_USE_SYSTEM_LIB_ZLIB=1 NO_USE_SYSTEM_LIB_JPEG=1 NO_USE_SYSTEM_LIB_FLAC=1 NO_USE_SYSTEM_LIB_SQLITE3=1
           cd ..

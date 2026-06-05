@@ -152,3 +152,31 @@ Eliminate unstable heuristic heap scanning in Apple II text screen memory readin
 | **Linker Exports** | ✅ Resolved | Mangled symbols linked cleanly under Emscripten. |
 | **Output Size** | 🚀 7.0MB GZ | Highly optimized standalone driver, 30% smaller than full build. |
 
+---
+
+## Session: 2026-06-05 — MAME 0.288 Upgrade & Emscripten Toolchain CI Update
+
+### 🎯 Objective
+Upgrade the build factory MAME source target to version 0.288, synchronize all document versioning, and resolve C++20 compiler compatibility issues in the GitHub Actions workflow by upgrading the Emscripten toolchain.
+
+### ✅ Key Changes
+
+#### 1. Version Bump to MAME 0.288
+- Updated `README.md` and `README-TW.md` version tags from `3.1` to `0.288` to align with the MAME release version.
+- Set the `Last Updated` date to `2026-06-05`.
+
+#### 2. GitHub Actions CI Toolchain Fix
+- Upgraded the cloning branch in `.github/workflows/deploy.yml` from `mame0287` to `mame0288` to fetch the 0.288 release source.
+- Replaced the deprecated `mymindstorm/setup-emsdk@v14` action with `emscripten-core/setup-emsdk@v14`.
+- Upgraded the Emscripten compiler version in CI from `3.1.35` to `latest` to satisfy MAME 0.288's strict C++20 requirements (`std::endian` support, template constraints), resolving the `libemu.a` archiving failure in GitHub Actions.
+- Increased the process open file descriptor limit (`ulimit -n 65536`) in the build runner before compilation to prevent archiver crashes (`Too many open files` error) during the assembly of `libemu.a`.
+- Added `VERBOSE=1` to the `emmake make` command to output complete compilation and archiving command lines to aid diagnosis.
+
+### 📋 Current Status
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **MAME Base** | ✅ v0.288 | Upgraded base branch to mame0288. |
+| **CI Toolchain** | ✅ emcc latest | Upgraded to latest Emscripten to fix C++20 compile errors. |
+| **Documentation** | ✅ v0.288 | Refactored versions and updated dates in guides. |
+
