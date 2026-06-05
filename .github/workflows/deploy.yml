@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y make gcc g++ git
+          sudo apt-get install -y make gcc g++ git ninja-build
 
       - name: Clone MAME source
         run: |
@@ -54,11 +54,7 @@ jobs:
       - name: Build MAME tiny (WASM)
         run: |
           ulimit -n 65536
-          cd mame
-          emmake make -j$(nproc) TARGET=mame SUBTARGET=tiny VERBOSE=1 \
-            LDFLAGS="-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1073741824 -s MAXIMUM_MEMORY=4GB -s DISABLE_EXCEPTION_CATCHING=0" \
-            DEBUG=0 SYMBOLS=0 NO_USE_MIDI=1 NO_USE_PORTAUDIO=1 NO_USE_PULSEAUDIO=1 NO_USE_SDL2=1 NO_USE_SYSTEM_LIB_ZLIB=1 NO_USE_SYSTEM_LIB_JPEG=1 NO_USE_SYSTEM_LIB_FLAC=1 NO_USE_SYSTEM_LIB_SQLITE3=1
-          cd ..
+          pwsh -File build-linux.ps1 -Target mame -Subtarget tiny -NoDebug
 
       - name: Find build artifacts
         run: |

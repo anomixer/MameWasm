@@ -31,17 +31,27 @@ Write-Host "======================================" -ForegroundColor Cyan
 Write-Host "`n[*] Setting up environment..." -ForegroundColor Yellow
 
 # Check Emscripten
-if (!(Test-Path "emsdk/upstream/emscripten/emcc")) {
-    Write-Host "[-] Emscripten not found. Run setup.ps1 first." -ForegroundColor Red
+$emccCmd = Get-Command emcc -ErrorAction SilentlyContinue
+if ($emccCmd) {
+    Write-Host "[+] Emscripten found in PATH" -ForegroundColor Green
+    $emccPath = $emccCmd.Source
+    $emscriptenBin = Split-Path $emccPath
+    if ($env:EMSDK) {
+        $emsdkBin = $env:EMSDK
+    } else {
+        $emsdkBin = Split-Path (Split-Path $emscriptenBin)
+    }
+} elseif (Test-Path "emsdk/upstream/emscripten/emcc") {
+    $emscriptenBin = "$PWD/emsdk/upstream/emscripten"
+    $emsdkBin = "$PWD/emsdk"
+    $env:PATH = "${emscriptenBin}:${emsdkBin}:${env:PATH}"
+} else {
+    Write-Host "[-] Emscripten not found. Run setup.ps1 first or ensure emcc is in PATH." -ForegroundColor Red
     exit 1
 }
 
-# Manually set up environment for Linux
-$emscriptenBin = "$PWD/emsdk/upstream/emscripten"
-$emsdkBin = "$PWD/emsdk"
-$env:PATH = "${emscriptenBin}:${emsdkBin}:${env:PATH}"
 $env:EMSCRIPTEN = $emscriptenBin
-$env:EMSDK = $PWD
+$env:EMSDK = $emsdkBin
 $env:EMSCRIPTEN_ROOT = $emscriptenBin
 
 # Verify emcc works
@@ -210,8 +220,29 @@ try {
             # CRITICAL: Escape $(2) as $$(2) for ninja (used by mcs96make.py commands)
             $content = $content.Replace('$(2)', '$$(2)')
             
-            # Patch link rule
-            $linkPattern = 'rule link\s+command\s+= cmd /c "(.+?)em\+\+ -o \$out \$all_outputfiles \$walibs  \$libs  \$all_ldflags \$post_build"'
+            # CRITICAL: Fix @echo commands in Linux shell
+            $content = $content.Replace('@echo ', 'echo ')
+            
+            # Patch rule ar (Linux style - no cmd /c)
+            $arPattern = 'rule ar\s+command\s+= (.+?)emar \$flags \$out \$in \$libs'
+            $arReplacement = "rule ar`n  command         = `$1emar `$flags `$out @`$out.rsp`n  description     = ar `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$in `$libs"
+            if ($content -match $arPattern) {
+                $content = $content -replace $arPattern, $arReplacement
+            }
+            
+            # Patch rule cxx (Linux style - no cmd /c)
+            $cxxPattern = 'rule cxx\s+command\s+= (.+?)em\+\+ \$defines \$includes \$flags -MD -MT \$out -MF \$out.d -c \$in -o \$out'
+            $cxxOpt = ""
+            if ($Production) {
+                $cxxOpt = "-msimd128 -fno-rtti -fno-stack-protector -fno-asynchronous-unwind-tables -fomit-frame-pointer -finline-functions"
+            }
+            $cxxReplacement = "rule cxx`n  command         = `$1em++ `$defines `$includes `$flags $cxxOpt -MD -MT `$out -MF `$out.d -c `$in -o `$out"
+            if ($content -match $cxxPattern) {
+                $content = $content -replace $cxxPattern, $cxxReplacement
+            }
+            
+            # Patch link rule (Linux style - no cmd /c)
+            $linkPattern = 'rule link\s+command\s+= (.+?)em\+\+ -o \$out \$all_outputfiles \$walibs\s+\$libs\s+\$all_ldflags \$post_build'
             
             # Aggressive Optimization
             $optFlags = "-O3"
@@ -224,7 +255,7 @@ try {
             $memFlags = "-s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=1073741824 -s MAXIMUM_MEMORY=4294967296"
             $exceptionFlags = if ($Production) { "-s DISABLE_EXCEPTION_CATCHING=1" } else { "-s DISABLE_EXCEPTION_CATCHING=0" }
 
-            $linkReplacement = "rule link`n  command         = cmd /c `"`$1em++ $optFlags $memFlags $exceptionFlags -o `$out @`$out.rsp `$all_ldflags `$post_build`"`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
+            $linkReplacement = "rule link`n  command         = `$1em++ $optFlags $memFlags $exceptionFlags -o `$out @`$out.rsp `$all_ldflags `$post_build`n  description     = link `$out`n  rspfile         = `$out.rsp`n  rspfile_content = `$all_outputfiles `$walibs `$libs"
             
             if ($content -match $linkPattern) {
                 $content = $content -replace $linkPattern, $linkReplacement
@@ -252,6 +283,45 @@ try {
                 $content = ($ruleLines -join "`n").TrimEnd() + "`n"
             }
             
+            # CRITICAL: Fix duplicate rules between dasm.ninja and optional.ninja
+            # optional.ninja duplicates some rules that also exist in dasm.ninja:
+            # - tms57002.hxx (generated header)
+            # - vaxdasm.o (VAX disassembler)
+            # - xtensa_helper.o (Xtensa CPU helper)
+            # We remove these from optional.ninja, keeping dasm.ninja's versions
+            if ($file.Name -eq 'optional.ninja') {
+                $lines = $content -split "`n"
+                $newLines = @()
+                $skipBlock = $false
+                $duplicatePatterns = @(
+                    'tms57002\.hxx:',
+                    'vaxdasm\.o:',
+                    'xtensa_helper\.o:'
+                )
+                foreach ($line in $lines) {
+                    $isDuplicate = $false
+                    foreach ($pattern in $duplicatePatterns) {
+                        if ($line -match "^build .+$pattern") {
+                            $isDuplicate = $true
+                            break
+                        }
+                    }
+                    if ($isDuplicate) {
+                        $skipBlock = $true
+                        continue
+                    } elseif ($skipBlock) {
+                        if ($line -match '^build ' -or $line -match '^# FILE:') {
+                            $skipBlock = $false
+                            $newLines += $line
+                        }
+                        continue
+                    } else {
+                        $newLines += $line
+                    }
+                }
+                $content = ($newLines -join "`n").TrimEnd() + "`n"
+            }
+            
             # CRITICAL: Fix ERRNO_CODES escaping that causes JS syntax errors
             $content = $content -replace 'DEFAULT_LIBRARY_FUNCS_TO_INCLUDE="?\[''[^'']*ERRNO_CODES[^'']*''\]"?', 'DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=[''$$ERRNO_CODES'']'
             
@@ -264,6 +334,35 @@ try {
             [System.IO.File]::WriteAllText($file.FullName, $content, $utf8NoBom)
         }
         Write-Host "   [+] Patched $($files.Count) ninja files" -ForegroundColor Green
+    }
+    
+    # CRITICAL: Pre-warm emscripten cache to prevent parallel build race conditions
+    $emccPath = "$emscriptenBin/emcc"
+    if (Test-Path $emccPath) {
+        Write-Host "[*] Pre-warming emscripten cache (this may take 2-3 minutes)..." -ForegroundColor Yellow
+        $tempFile = [System.IO.Path]::GetTempFileName() + ".cpp"
+        @"
+#include <list>
+#include <algorithm>
+#include <string>
+#include <vector>
+int main() { return 0; }
+"@ | Set-Content $tempFile
+        & $emccPath $tempFile -o "$tempFile.js" -std=c++20 -s USE_SDL=2 -s USE_SDL_TTF=2 -s USE_FREETYPE=2 -s EXCEPTION_CATCHING_ALLOWED="['test']" 2>&1 | Out-Null
+        Remove-Item $tempFile, "$tempFile.js", "$tempFile.wasm" -ErrorAction SilentlyContinue
+        
+        $tempFile2 = [System.IO.Path]::GetTempFileName() + ".cpp"
+        "int main() { return 0; }" | Set-Content $tempFile2
+        & $emccPath $tempFile2 -o "$tempFile2.js" -std=c++20 2>&1 | Out-Null
+        Remove-Item $tempFile2, "$tempFile2.js", "$tempFile2.wasm" -ErrorAction SilentlyContinue
+        
+        # Lock emscripten cache
+        $cacheDir = "$emscriptenBin/cache"
+        if (Test-Path $cacheDir) {
+            Write-Host "[*] Locking emscripten cache (read-only)..." -ForegroundColor Yellow
+            Get-ChildItem $cacheDir -Recurse -File | ForEach-Object { $_.IsReadOnly = $true }
+            Write-Host "[+] Emscripten cache locked." -ForegroundColor Green
+        }
     }
 
     Write-Host "`n[*] Step 4: Building with Ninja..." -ForegroundColor Yellow
