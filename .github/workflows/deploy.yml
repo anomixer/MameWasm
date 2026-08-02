@@ -37,7 +37,7 @@ jobs:
 
       - name: Clone MAME source
         run: |
-          git clone --depth 1 --branch mame0288 https://github.com/mamedev/mame.git mame
+          git clone --depth 1 --branch mame0289 https://github.com/mamedev/mame.git mame
 
       - name: Copy custom targets
         run: |

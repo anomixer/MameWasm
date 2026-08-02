@@ -47,8 +47,6 @@ function linkProjects_mame_ample(_target, _subtarget)
         if name ~= "shared" then
             if 0 < #os.matchfiles(path.join(dir, "**.cpp")) then
                 table.insert(projects, name)
-            elseif 0 < #os.matchfiles(path.join(dir, "**.h")) then
-                table.insert(projects, name)
             end
         end
     end
@@ -92,12 +90,9 @@ function createProjects_mame_ample(_target, _subtarget)
         local sources = {}
         if 0 < #os.matchfiles(path.join(dir, "**.cpp")) then
             table.insert(sources, MAME_DIR .. "src/" .. _target .. "/" .. name .. "/**.cpp")
-        end
-        if 0 < #os.matchfiles(path.join(dir, "**.h")) then
-            table.insert(sources, MAME_DIR .. "src/" .. _target .. "/" .. name .. "/**.h")
-        end
-
-        if 0 < #sources then
+            if 0 < #os.matchfiles(path.join(dir, "**.h")) then
+                table.insert(sources, MAME_DIR .. "src/" .. _target .. "/" .. name .. "/**.h")
+            end
             createMAMEProjects(_target, _subtarget, name)
             table.sort(sources)
             files(sources)
