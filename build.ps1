@@ -255,8 +255,8 @@ try {
         $genieLuaPath = Join-Path $PWD "scripts/genie.lua"
         if (Test-Path $genieLuaPath) {
             $genieContent = Get-Content $genieLuaPath -Raw
-            $genieContent = $genieContent.Replace("-s USE_SDL_TTF=3", "-s USE_SDL=2`n`t`t-s USE_SDL_TTF=2")
-            $genieContent = $genieContent.Replace("-s USE_SDL=3", "-s USE_SDL=2")
+            $genieContent = $genieContent.Replace('"-s USE_SDL_TTF=3"', '"-s USE_SDL=2",`n`t`t"-s USE_SDL_TTF=2"')
+            $genieContent = $genieContent.Replace('"-s USE_SDL=3"', '"-s USE_SDL=2"')
             Set-Content -Path $genieLuaPath -Value $genieContent -NoNewline
             Write-Host "   [*] Patched scripts/genie.lua for SDL2 compatibility." -ForegroundColor Green
         }
