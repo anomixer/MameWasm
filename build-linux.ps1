@@ -169,25 +169,11 @@ try {
         exit 1
     }
 
-    # Patch scripts/genie.lua for SDL2 compatibility on MAME 0.289+
-    $genieLuaPath = Join-Path $PWD "scripts/genie.lua"
-    if (Test-Path $genieLuaPath) {
-        $genieContent = Get-Content $genieLuaPath -Raw
-        $genieContent = $genieContent.Replace('"-s USE_SDL_TTF=3"', '"-s USE_SDL=2",`n`t`t"-s USE_SDL_TTF=2"')
-        $genieContent = $genieContent.Replace('"-s USE_SDL=3"', '"-s USE_SDL=2"')
-        Set-Content -Path $genieLuaPath -Value $genieContent -NoNewline
-        Write-Host "   [*] Patched scripts/genie.lua for SDL2 compatibility." -ForegroundColor Green
-    }
-
-    # Patch msxdos2.cpp for PAGE_SIZE macro collision on Emscripten/Linux
-    $msxdos2Path = Join-Path $PWD "src/devices/bus/msx/cart/msxdos2.cpp"
-    if (Test-Path $msxdos2Path) {
-        $msxContent = Get-Content $msxdos2Path -Raw
-        if ($msxContent -notmatch "#undef PAGE_SIZE") {
-            $msxContent = $msxContent.Replace('#include "bus/generic/slot.h"', "#include `"bus/generic/slot.h`"`n#ifdef PAGE_SIZE`n#undef PAGE_SIZE`n#endif")
-            Set-Content -Path $msxdos2Path -Value $msxContent -NoNewline
-            Write-Host "   [*] Patched msxdos2.cpp for PAGE_SIZE macro collision." -ForegroundColor Green
-        }
+    # Run Python auto-patcher for MAME 0.289+ compatibility (SDL2 & PAGE_SIZE)
+    $patchScript = Join-Path (Split-Path $PWD) "patch_mame.py"
+    if (-not (Test-Path $patchScript)) { $patchScript = Join-Path $PWD "patch_mame.py" }
+    if (Test-Path $patchScript) {
+        python3 $patchScript $PWD
     }
 
     # Use Linux genie
