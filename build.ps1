@@ -252,22 +252,22 @@ try {
         Write-Host "[*] Step 2: Generating Ninja project files (Direct Genie invocation)..." -ForegroundColor Yellow
         
         # Patch scripts/genie.lua for SDL2 compatibility on MAME 0.289+
-        $genieLuaPath = "scripts/genie.lua"
+        $genieLuaPath = Join-Path $PWD "scripts/genie.lua"
         if (Test-Path $genieLuaPath) {
-            $genieContent = [System.IO.File]::ReadAllText($genieLuaPath)
+            $genieContent = Get-Content $genieLuaPath -Raw
             $genieContent = $genieContent.Replace("-s USE_SDL_TTF=3", "-s USE_SDL=2`n`t`t-s USE_SDL_TTF=2")
             $genieContent = $genieContent.Replace("-s USE_SDL=3", "-s USE_SDL=2")
-            [System.IO.File]::WriteAllText($genieLuaPath, $genieContent)
+            Set-Content -Path $genieLuaPath -Value $genieContent -NoNewline
             Write-Host "   [*] Patched scripts/genie.lua for SDL2 compatibility." -ForegroundColor Green
         }
 
         # Patch msxdos2.cpp for PAGE_SIZE macro collision on Emscripten/Linux
-        $msxdos2Path = "src/devices/bus/msx/cart/msxdos2.cpp"
+        $msxdos2Path = Join-Path $PWD "src/devices/bus/msx/cart/msxdos2.cpp"
         if (Test-Path $msxdos2Path) {
-            $msxContent = [System.IO.File]::ReadAllText($msxdos2Path)
+            $msxContent = Get-Content $msxdos2Path -Raw
             if ($msxContent -notmatch "#undef PAGE_SIZE") {
                 $msxContent = $msxContent.Replace('#include "bus/generic/slot.h"', "#include `"bus/generic/slot.h`"`n#ifdef PAGE_SIZE`n#undef PAGE_SIZE`n#endif")
-                [System.IO.File]::WriteAllText($msxdos2Path, $msxContent)
+                Set-Content -Path $msxdos2Path -Value $msxContent -NoNewline
                 Write-Host "   [*] Patched msxdos2.cpp for PAGE_SIZE macro collision." -ForegroundColor Green
             }
         }
