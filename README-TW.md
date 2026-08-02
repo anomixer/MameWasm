@@ -1,4 +1,4 @@
-# MAME WASM Build Factory - 繁體中文完整指南 (v0.288)
+# MAME WASM Build Factory - 繁體中文完整指南 (v0.289)
 
 > 🇺🇸 [English Version](README.md)
 > 🎮 [玩 Robby Roto](https://anomixer.github.io/MameWasm/) | [載入你的 ROM](https://anomixer.github.io/MameWasm/play.html)
@@ -186,5 +186,5 @@ sudo apt update && sudo apt install -y build-essential git python3
 - **路徑限制**：資料夾路徑絕對不能包含中文字元或空格。
 - **RAM 需求**：建議至少有 16GB 以上的 RAM。
 
-**最後更新**：2026-06-05
-**版本**：0.288
+**最後更新**：2026-08-02
+**版本**：0.289

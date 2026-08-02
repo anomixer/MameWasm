@@ -180,3 +180,33 @@ Upgrade the build factory MAME source target to version 0.288, synchronize all d
 | **CI Toolchain** | ✅ emcc latest | Upgraded to latest Emscripten to fix C++20 compile errors. |
 | **Documentation** | ✅ v0.288 | Refactored versions and updated dates in guides. |
 
+---
+
+## Session: 2026-08-02 — MAME 0.289 Upgrade & Windows Build System Fixes
+
+### 🎯 Objective
+Upgrade the MAME WASM Build Factory source target to official **MAME 0.289**, resolve Windows Ninja static library archiving path errors, and fix custom subtarget project generation.
+
+### ✅ Key Changes
+
+#### 1. MAME 0.289 Upgrade & Core Parity
+- **Source Target**: Fetched tag `mame0289` from official upstream MAME and created the `release0289` branch.
+- **WASM RAM Access Exports**: Ported `_emscripten_get_main_ram_wasm_offset` and `_emscripten_get_aux_ram_wasm_offset` export functions to MAME 0.289 `src/emu/machine.cpp` for direct Apple II screen RAM DMA reading.
+- **PowerBook EASC Fix**: Upstream MAME 0.289 C++ fixes for Macintosh PowerBook ASC/EASC audio devices are active.
+- **CI Workflow Update**: Updated `.github/workflows/deploy.yml` branch from `mame0288` to `mame0289`.
+
+#### 2. Windows Build System Fixes
+- **Rule AR Command Fix**: Fixed `ar` rule replacement in `build.ps1` by removing an invalid `del` invocation (`del /f /q ../path/lib.a`) which broke on Windows forward slashes.
+- **Header-Only Project Filter Fix**: Fixed `custom_targets/ample.lua` and `scripts/target/mame/ample.lua` (`createProjects_mame_ample`) so subtarget projects are only generated for directories containing `.cpp` source files, preventing linker errors from non-existent `.a` libraries (e.g. `libaccess.a`).
+- **Emscripten MSX Header Collision Fix**: Fixed a C++ macro collision in `src/devices/bus/msx/cart/msxdos2.cpp` by undefining `PAGE_SIZE` before the class definition.
+
+### 📋 Current Status
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **MAME Base** | ✅ v0.289 | Upgraded base branch to mame0289 tag. |
+| **CI Workflow** | ✅ mame0289 | Pointed deploy workflow to mame0289 tag. |
+| **Build Script** | ✅ Fixed | Fixed `rule ar` forward slash command execution on Windows. |
+| **Documentation** | ✅ v0.289 | Updated version tags and dates in `README.md` and `README-TW.md`. |
+
+
