@@ -3,6 +3,15 @@
 ## Project Overview
 Automated toolset for compiling MAME to WebAssembly with high stability and optimization. This repository is self-contained and supports Windows, Linux (via Docker/WSL), and various machine subtargets.
 
+## Session: 2026-09-02 — Lisa & SGI Workstation Subtarget Expansion
+
+### 🎯 Objective
+Expand the `ample` subtarget white-list (`ample.lst`) to incorporate all Lisa family models and SGI RISC Unix workstations (Indigo, Indigo2, Indy) into the unified MAME 0.289 WASM core.
+
+### ✅ Key Changes
+- **Expanded `ample.lst` Driver List**: Added `lisa`, `lisa2`, `lisa210`, `macxl` (Lisa family) and `indigo`, `indigo2_4415`, `indy_4610`, `indy_4613`, `indy_5015` (SGI RISC Workstations).
+- **Core Compilation & Compression**: Built optimized `mameample.wasm` (69MB raw) and Gzipped to 10.55MB (`mame.wasm.gz`), verified clean initialization of 68000 and 64-bit MIPS R4000/R4600/R5000 CPU cores in WebAssembly.
+
 ---
 
 ## Session: 2026-05-03 — Production Optimization & Dockerization
