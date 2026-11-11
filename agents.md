@@ -3,6 +3,17 @@
 ## Project Overview
 Automated toolset for compiling MAME to WebAssembly with high stability and optimization. This repository is self-contained and supports Windows, Linux (via Docker/WSL), and various machine subtargets.
 
+## Session: 2026-11-11 — Automatic Emscripten Initial Memory Patching (`patch_mame.py`)
+
+### 🎯 Objective
+Resolve `initial memory too small` linker errors during MAME WebAssembly compilation (e.g. Issue #1) by automatically patching `scripts/genie.lua` via `patch_mame.py`.
+
+### ✅ Key Changes
+- **Automatic GENIE Memory Patch**: Updated `patch_mame.py` to replace `-s INITIAL_MEMORY=24MB` with `-s INITIAL_MEMORY=512MB` and `-s MAXIMUM_MEMORY=4GB` in `scripts/genie.lua`.
+- **Full Build Pipeline Coverage**: Guarantees that both `build.ps1` and `build-linux.ps1` (as well as manual `make` runs following `patch_mame.py`) generate build files with sufficient initial WASM memory allocation for large drivers.
+
+---
+
 ## Session: 2026-09-02 — Lisa & SGI Workstation Subtarget Expansion
 
 ### 🎯 Objective

@@ -13,9 +13,11 @@ def patch_mame(mame_dir):
             content = f.read()
         content = content.replace('"-s USE_SDL_TTF=3"', '"-s USE_SDL=2",\n\t\t"-s USE_SDL_TTF=2"')
         content = content.replace('"-s USE_SDL=3"', '"-s USE_SDL=2"')
+        if '"-s INITIAL_MEMORY=24MB"' in content:
+            content = content.replace('"-s INITIAL_MEMORY=24MB"', '"-s INITIAL_MEMORY=512MB",\n\t\t\t"-s MAXIMUM_MEMORY=4GB"')
         with open(genie_lua, "w", encoding="utf-8") as f:
             f.write(content)
-        print("   [+] Patched scripts/genie.lua for SDL2 compatibility.")
+        print("   [+] Patched scripts/genie.lua for SDL2 compatibility and INITIAL_MEMORY.")
 
     # 2. Patch msxdos2.cpp
     msxdos2 = os.path.join(mame_dir, "src", "devices", "bus", "msx", "cart", "msxdos2.cpp")
